@@ -848,16 +848,16 @@ Examples:
 
 ### Manual Testing
 
-- [ ] Start OCLoop with a simple 3-task plan
-- [ ] Verify iterations progress automatically
-- [ ] Test pause/resume with Space
-- [ ] Test attach/detach with Ctrl+\
-- [ ] Verify keybindings work in both modes
-- [ ] Test quit with Q
-- [ ] Verify .PLAN_COMPLETE stops the loop
-- [ ] Test with [MANUAL] and [BLOCKED] tasks
-- [ ] Verify progress bar accuracy
-- [ ] Test terminal resize handling
+- [MANUAL] Start OCLoop with a simple 3-task plan
+- [MANUAL] Verify iterations progress automatically
+- [MANUAL] Test pause/resume with Space
+- [MANUAL] Test attach/detach with Ctrl+\\
+- [MANUAL] Verify keybindings work in both modes
+- [MANUAL] Test quit with Q
+- [MANUAL] Verify .PLAN_COMPLETE stops the loop
+- [MANUAL] Test with [MANUAL] and [BLOCKED] tasks
+- [MANUAL] Verify progress bar accuracy
+- [MANUAL] Test terminal resize handling
 
 ---
 

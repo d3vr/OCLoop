@@ -724,7 +724,7 @@ Examples:
   - Handle iteration counting
   - Expose derived state helpers
 
-- [ ] **2.2** Implement SSE subscription hook
+- [x] **2.2** Implement SSE subscription hook
   - File: `src/hooks/useSSE.ts`
   - Connect to `/event` endpoint
   - Parse SSE events

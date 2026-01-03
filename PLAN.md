@@ -41,7 +41,7 @@ Always check these directories to understand:
 | `solid-js`        | Reactive UI framework              |
 | `ghostty-opentui` | Terminal emulation + PTY rendering |
 | `bun-pty`         | PTY spawning and management        |
-| `@opencode/sdk`   | OpenCode server/client SDK         |
+| `@opencode-ai/sdk`| OpenCode server/client SDK         |
 
 ---
 
@@ -618,7 +618,7 @@ function usePTY(
 ## API Helpers (lib/api.ts)
 
 ```typescript
-import { createOpencodeClient } from "@opencode/sdk"
+import { createOpencodeClient } from "@opencode-ai/sdk"
 
 export function createClient(url: string) {
   return createOpencodeClient({ baseUrl: url })

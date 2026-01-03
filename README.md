@@ -175,6 +175,20 @@ OCLoop respects OpenCode's environment variables for API keys and configuration.
 | `.PLAN_COMPLETE`  | Created when all automatable tasks are complete  |
 | `AGENTS.md`       | Persistent knowledge for OpenCode across sessions|
 
+## Examples
+
+The `examples/` directory contains starter templates:
+
+- `PLAN.md` - Example task plan demonstrating all supported markers (`[ ]`, `[x]`, `[MANUAL]`, `[BLOCKED]`)
+- `loop-prompt.md` - Example loop prompt with best practices for knowledge persistence
+
+To use them:
+
+```bash
+cp examples/PLAN.md ./PLAN.md
+cp examples/loop-prompt.md ./.loop-prompt.md  # Note the leading dot
+```
+
 ## Development
 
 ```bash

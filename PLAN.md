@@ -710,7 +710,7 @@ Examples:
   - Return PlanProgress object
   - Add tests
 
-- [ ] **1.3** Implement server management hook
+- [x] **1.3** Implement server management hook
   - File: `src/hooks/useServer.ts`
   - Use `createOpencodeServer` from SDK
   - Handle startup, ready, error states

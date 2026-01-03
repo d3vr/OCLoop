@@ -136,11 +136,11 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
     }
 
     case "plan_complete": {
-      // Transition to complete state
+      // Transition to complete state with summary
       if (state.type === "running" || state.type === "paused") {
         const iterations =
           state.type === "running" ? state.iteration : state.iteration
-        return { type: "complete", iterations }
+        return { type: "complete", iterations, summary: action.summary }
       }
       return state
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { parsePlan } from "./plan-parser"
+import { parsePlan, parseRemainingTasks } from "./plan-parser"
 
 describe("parsePlan", () => {
   it("should return empty progress for empty content", () => {
@@ -162,5 +162,88 @@ More text here.
     expect(result.manual).toBe(1)
     // percentComplete = 3 / (6 - 1) = 3/5 = 60%
     expect(result.percentComplete).toBe(60)
+  })
+})
+
+describe("parseRemainingTasks", () => {
+  it("should return empty arrays for empty content", () => {
+    const result = parseRemainingTasks("")
+
+    expect(result.manualTasks).toEqual([])
+    expect(result.blockedTasks).toEqual([])
+  })
+
+  it("should extract MANUAL task descriptions", () => {
+    const content = `
+- [MANUAL] Manual testing task
+- [MANUAL] Another manual task
+`
+    const result = parseRemainingTasks(content)
+
+    expect(result.manualTasks).toEqual([
+      "Manual testing task",
+      "Another manual task",
+    ])
+    expect(result.blockedTasks).toEqual([])
+  })
+
+  it("should extract BLOCKED task descriptions with reasons", () => {
+    const content = `
+- [BLOCKED: waiting for API] Blocked task one
+- [BLOCKED: needs review] Blocked task two
+`
+    const result = parseRemainingTasks(content)
+
+    expect(result.manualTasks).toEqual([])
+    expect(result.blockedTasks).toEqual([
+      "[BLOCKED: waiting for API] Blocked task one",
+      "[BLOCKED: needs review] Blocked task two",
+    ])
+  })
+
+  it("should handle BLOCKED tasks without reason", () => {
+    const content = `
+- [BLOCKED] Simple blocked task
+`
+    const result = parseRemainingTasks(content)
+
+    expect(result.blockedTasks).toEqual(["Simple blocked task"])
+  })
+
+  it("should extract both MANUAL and BLOCKED tasks", () => {
+    const content = `
+## Backlog
+
+- [x] **1.1** Completed task
+- [MANUAL] **2.1** Manual testing task
+- [BLOCKED: needs API] **2.2** Blocked task
+`
+    const result = parseRemainingTasks(content)
+
+    expect(result.manualTasks).toEqual(["**2.1** Manual testing task"])
+    expect(result.blockedTasks).toEqual(["[BLOCKED: needs API] **2.2** Blocked task"])
+  })
+
+  it("should handle case-insensitive BLOCKED tags", () => {
+    const content = `
+- [blocked: reason] Task one
+- [Blocked: reason] Task two
+- [BLOCKED: reason] Task three
+`
+    const result = parseRemainingTasks(content)
+
+    expect(result.blockedTasks.length).toBe(3)
+  })
+
+  it("should ignore completed and pending tasks", () => {
+    const content = `
+- [x] Completed task
+- [ ] Pending task
+- [MANUAL] Manual task
+`
+    const result = parseRemainingTasks(content)
+
+    expect(result.manualTasks).toEqual(["Manual task"])
+    expect(result.blockedTasks).toEqual([])
   })
 })

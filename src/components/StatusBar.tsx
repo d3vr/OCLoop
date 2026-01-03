@@ -1,5 +1,5 @@
-import { createMemo, Show } from "solid-js"
-import type { LoopState, PlanProgress } from "../types"
+import { createMemo, Show, For } from "solid-js"
+import type { LoopState, PlanProgress, CompletionSummary } from "../types"
 import { ProgressIndicator } from "./ProgressIndicator"
 
 /**
@@ -100,6 +100,22 @@ export function StatusBar(props: StatusBarProps) {
     return `[${progress.completed}/${progress.total - progress.manual}]`
   })
 
+  // Completion summary
+  const completionSummary = createMemo((): CompletionSummary | null => {
+    const state = props.state()
+    if (state.type === "complete") {
+      return state.summary
+    }
+    return null
+  })
+
+  // Check if there are remaining tasks
+  const hasRemainingTasks = createMemo(() => {
+    const summary = completionSummary()
+    if (!summary) return false
+    return summary.manualTasks.length > 0 || summary.blockedTasks.length > 0
+  })
+
   return (
     <box style={{ flexDirection: "column" }}>
       {/* Main status line */}
@@ -150,6 +166,57 @@ export function StatusBar(props: StatusBarProps) {
             <span style={{ fg: "gray" }}>Current: </span>
             <span style={{ fg: "white" }}>{props.currentTask!()}</span>
           </text>
+        </box>
+      </Show>
+
+      {/* Completion summary (only shown in complete state) */}
+      <Show when={props.state().type === "complete"}>
+        <box style={{ flexDirection: "column", marginTop: 1 }}>
+          <text>
+            <span style={{ fg: "cyan", bold: true }}>
+              Plan completed in {iteration()} iteration{iteration() !== 1 ? "s" : ""}!
+            </span>
+          </text>
+          
+          <Show when={hasRemainingTasks()}>
+            <text style={{ marginTop: 1 }}>
+              <span style={{ fg: "yellow" }}>Remaining tasks for human follow-up:</span>
+            </text>
+            
+            {/* Manual tasks */}
+            <Show when={completionSummary()?.manualTasks.length}>
+              <text style={{ marginTop: 1 }}>
+                <span style={{ fg: "white" }}>[MANUAL] tasks:</span>
+              </text>
+              <For each={completionSummary()?.manualTasks}>
+                {(task) => (
+                  <text>
+                    <span style={{ fg: "gray" }}>  - {task}</span>
+                  </text>
+                )}
+              </For>
+            </Show>
+
+            {/* Blocked tasks */}
+            <Show when={completionSummary()?.blockedTasks.length}>
+              <text style={{ marginTop: 1 }}>
+                <span style={{ fg: "red" }}>[BLOCKED] tasks:</span>
+              </text>
+              <For each={completionSummary()?.blockedTasks}>
+                {(task) => (
+                  <text>
+                    <span style={{ fg: "gray" }}>  - {task}</span>
+                  </text>
+                )}
+              </For>
+            </Show>
+          </Show>
+
+          <Show when={!hasRemainingTasks()}>
+            <text style={{ marginTop: 1 }}>
+              <span style={{ fg: "green" }}>All automatable tasks completed successfully!</span>
+            </text>
+          </Show>
         </box>
       </Show>
     </box>

@@ -1,4 +1,12 @@
 /**
+ * Summary of remaining tasks when plan is complete
+ */
+export interface CompletionSummary {
+  manualTasks: string[]  // Descriptions of [MANUAL] tasks
+  blockedTasks: string[] // Descriptions of [BLOCKED: reason] tasks
+}
+
+/**
  * State machine type for the OCLoop harness
  */
 export type LoopState =
@@ -8,7 +16,7 @@ export type LoopState =
   | { type: "paused"; attached: boolean; iteration: number }
   | { type: "stopping" }
   | { type: "stopped" }
-  | { type: "complete"; iterations: number }
+  | { type: "complete"; iterations: number; summary: CompletionSummary }
 
 /**
  * Actions that can be dispatched to the loop state machine
@@ -20,7 +28,7 @@ export type LoopAction =
   | { type: "quit" }
   | { type: "session_idle" }
   | { type: "iteration_started"; sessionId: string }
-  | { type: "plan_complete" }
+  | { type: "plan_complete"; summary: CompletionSummary }
 
 /**
  * Progress information parsed from PLAN.md

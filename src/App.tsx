@@ -17,7 +17,7 @@ import { useServer } from "./hooks/useServer"
 import { useSSE } from "./hooks/useSSE"
 import { useLoopState } from "./hooks/useLoopState"
 import { usePTY } from "./hooks/usePTY"
-import { parsePlanFile } from "./lib/plan-parser"
+import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
 import {
   StatusBar,
@@ -188,7 +188,20 @@ export function App(props: AppProps) {
 
     // Check for plan completion first
     if (await checkPlanComplete()) {
-      loop.dispatch({ type: "plan_complete" })
+      // Parse remaining tasks from the plan file and .PLAN_COMPLETE file
+      const planPath = props.planFile || DEFAULTS.PLAN_FILE
+      let summary = await parseRemainingTasksFile(planPath)
+      
+      // Also check .PLAN_COMPLETE for any additional info
+      const completeSummary = await parseCompletionFile(DEFAULTS.COMPLETE_FILE)
+      
+      // Merge summaries (prefer the plan file data, but add any unique items from .PLAN_COMPLETE)
+      summary = {
+        manualTasks: [...new Set([...summary.manualTasks, ...completeSummary.manualTasks])],
+        blockedTasks: [...new Set([...summary.blockedTasks, ...completeSummary.blockedTasks])],
+      }
+      
+      loop.dispatch({ type: "plan_complete", summary })
       return
     }
 

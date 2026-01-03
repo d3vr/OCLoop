@@ -330,36 +330,46 @@ describe("loopReducer", () => {
   })
 
   describe("plan_complete action", () => {
-    it("should transition from running to complete", () => {
+    it("should transition from running to complete with summary", () => {
       const state: LoopState = {
         type: "running",
         attached: false,
         iteration: 10,
         sessionId: "session",
       }
-      const action: LoopAction = { type: "plan_complete" }
+      const action: LoopAction = {
+        type: "plan_complete",
+        summary: { manualTasks: ["Manual task 1"], blockedTasks: [] },
+      }
 
       const result = loopReducer(state, action)
 
       expect(result.type).toBe("complete")
       if (result.type === "complete") {
         expect(result.iterations).toBe(10)
+        expect(result.summary.manualTasks).toEqual(["Manual task 1"])
+        expect(result.summary.blockedTasks).toEqual([])
       }
     })
 
-    it("should transition from paused to complete", () => {
+    it("should transition from paused to complete with summary", () => {
       const state: LoopState = {
         type: "paused",
         attached: false,
         iteration: 7,
       }
-      const action: LoopAction = { type: "plan_complete" }
+      const action: LoopAction = {
+        type: "plan_complete",
+        summary: { manualTasks: [], blockedTasks: ["[BLOCKED: reason] Task"] },
+      }
 
       const result = loopReducer(state, action)
 
       expect(result.type).toBe("complete")
       if (result.type === "complete") {
         expect(result.iterations).toBe(7)
+        expect(result.summary.manualTasks).toEqual([])
+        expect(result.summary.blockedTasks).toEqual(["[BLOCKED: reason] Task"])
       }
     })
   })
@@ -416,10 +426,14 @@ describe("loopReducer", () => {
       }
 
       // Plan is complete
-      state = loopReducer(state, { type: "plan_complete" })
+      state = loopReducer(state, {
+        type: "plan_complete",
+        summary: { manualTasks: [], blockedTasks: [] },
+      })
       expect(state.type).toBe("complete")
       if (state.type === "complete") {
         expect(state.iterations).toBe(3)
+        expect(state.summary).toEqual({ manualTasks: [], blockedTasks: [] })
       }
     })
 

@@ -1,4 +1,4 @@
-import type { PlanProgress } from "../types"
+import type { PlanProgress, CompletionSummary } from "../types"
 
 /**
  * Parses a PLAN.md file content and extracts progress information.
@@ -53,6 +53,44 @@ export function parsePlan(content: string): PlanProgress {
 }
 
 /**
+ * Extracts task descriptions for MANUAL and BLOCKED tasks from PLAN.md content.
+ *
+ * @param content - The content of the PLAN.md file
+ * @returns CompletionSummary with arrays of task descriptions
+ */
+export function parseRemainingTasks(content: string): CompletionSummary {
+  const lines = content.split("\n")
+  const manualTasks: string[] = []
+  const blockedTasks: string[] = []
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    if (trimmed.startsWith("- [MANUAL]")) {
+      // Extract the task description after [MANUAL]
+      const description = trimmed.replace(/^- \[MANUAL\]\s*/, "").trim()
+      if (description) {
+        manualTasks.push(description)
+      }
+    } else if (/^- \[BLOCKED/i.test(trimmed)) {
+      // Extract the task description (includes the reason)
+      // Format: "- [BLOCKED: reason] description" -> keep both reason and description
+      const match = trimmed.match(/^- \[BLOCKED[:\s]*([^\]]*)\]\s*(.*)$/i)
+      if (match) {
+        const reason = match[1]?.trim()
+        const description = match[2]?.trim()
+        const fullDescription = reason
+          ? `[BLOCKED: ${reason}] ${description}`
+          : description || "Unknown task"
+        blockedTasks.push(fullDescription)
+      }
+    }
+  }
+
+  return { manualTasks, blockedTasks }
+}
+
+/**
  * Reads and parses a PLAN.md file from disk.
  *
  * @param planPath - Path to the PLAN.md file
@@ -63,4 +101,38 @@ export async function parsePlanFile(planPath: string): Promise<PlanProgress> {
   const file = Bun.file(planPath)
   const content = await file.text()
   return parsePlan(content)
+}
+
+/**
+ * Reads and parses remaining tasks from a PLAN.md file.
+ *
+ * @param planPath - Path to the PLAN.md file
+ * @returns CompletionSummary with arrays of task descriptions
+ * @throws Error if the file cannot be read
+ */
+export async function parseRemainingTasksFile(planPath: string): Promise<CompletionSummary> {
+  const file = Bun.file(planPath)
+  const content = await file.text()
+  return parseRemainingTasks(content)
+}
+
+/**
+ * Parses the .PLAN_COMPLETE file to get completion summary.
+ * The file may contain a list of remaining MANUAL and BLOCKED tasks.
+ *
+ * @param completePath - Path to the .PLAN_COMPLETE file
+ * @returns CompletionSummary with arrays of task descriptions
+ */
+export async function parseCompletionFile(completePath: string): Promise<CompletionSummary> {
+  try {
+    const file = Bun.file(completePath)
+    const content = await file.text()
+    
+    // The .PLAN_COMPLETE file is expected to list remaining tasks
+    // Parse any [MANUAL] or [BLOCKED] items from it
+    return parseRemainingTasks(content)
+  } catch {
+    // If the file doesn't exist or can't be read, return empty summary
+    return { manualTasks: [], blockedTasks: [] }
+  }
 }

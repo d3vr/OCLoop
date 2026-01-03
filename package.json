@@ -16,7 +16,7 @@
     "solid-js": "^1.8.0",
     "ghostty-opentui": "latest",
     "bun-pty": "latest",
-    "@opencode/sdk": "latest"
+    "@opencode-ai/sdk": "latest"
   },
   "devDependencies": {
     "@types/bun": "latest",

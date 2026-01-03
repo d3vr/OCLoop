@@ -1,6 +1,6 @@
 # OCLoop
 
-A loop harness that orchestrates [OpenCode](https://github.com/opencode-ai/opencode) to execute tasks from a PLAN.md file iteratively. Each iteration runs in an isolated session, with the OpenCode TUI embedded and visible throughout.
+A loop harness that orchestrates [OpenCode](https://opencode.ai) to execute tasks from a PLAN.md file iteratively. Each iteration runs in an isolated session, with the OpenCode TUI embedded and visible throughout.
 
 ## Features
 
@@ -13,13 +13,13 @@ A loop harness that orchestrates [OpenCode](https://github.com/opencode-ai/openc
 ## Requirements
 
 - [Bun](https://bun.sh) runtime (v1.0 or later)
-- [OpenCode](https://github.com/opencode-ai/opencode) installed and configured
+- [OpenCode](https://opencode.ai) installed and configured
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/ocloop.git
+git clone https://github.com/d3vr/ocloop.git
 cd ocloop
 
 # Install dependencies
@@ -41,37 +41,16 @@ ocloop
 
 ## Quick Start
 
-1. **Create a plan file** (`PLAN.md`):
+1. **Create a plan file** (`PLAN.md`) and **loop prompt file** (`.loop-prompt.md`):
 
-```markdown
-## Backlog
-
-- [ ] **1.1** Initialize the database schema
-- [ ] **1.2** Create user authentication endpoints
-- [ ] **1.3** Add input validation
-- [MANUAL] **2.1** Deploy to staging environment
+```bash
+cp examples/PLAN.md ./PLAN.md
+cp examples/loop-prompt.md ./.loop-prompt.md  # Note the leading dot
 ```
 
-2. **Create a loop prompt file** (`.loop-prompt.md`):
+See `examples/CREATE_PLAN.md` for a prompt to help generate plans for your project.
 
-```markdown
-Execute the next task from PLAN.md.
-
-Before starting:
-1. Read PLAN.md fully
-2. Identify the next uncompleted task ([ ])
-
-Execute:
-1. Make the code changes
-2. Run relevant tests
-3. Commit with a descriptive message
-
-After completion:
-1. Update PLAN.md marking completed items with [x]
-2. If all tasks are complete, create .PLAN_COMPLETE
-```
-
-3. **Run OCLoop**:
+2. **Run OCLoop**:
 
 ```bash
 ocloop
@@ -148,18 +127,6 @@ The loop ends when:
 - You quit manually with `Q`
 - An unrecoverable error occurs
 
-## Visual States
-
-| State              | Indicator                    | Description                    |
-| ------------------ | ---------------------------- | ------------------------------ |
-| Starting           | Spinner                      | Server starting up             |
-| Running (Detached) | Green `RUNNING`              | Iteration in progress          |
-| Running (Attached) | Green `RUNNING` + `ATTACHED` | You're interacting with TUI    |
-| Pausing            | Yellow `PAUSING...`          | Waiting for iteration to end   |
-| Paused             | Yellow `PAUSED`              | Loop paused between iterations |
-| Complete           | Cyan `COMPLETE`              | All tasks finished             |
-| Error              | Red `ERROR`                  | Something went wrong           |
-
 ## Configuration
 
 ### Environment Variables
@@ -181,6 +148,7 @@ The `examples/` directory contains starter templates:
 
 - `PLAN.md` - Example task plan demonstrating all supported markers (`[ ]`, `[x]`, `[MANUAL]`, `[BLOCKED]`)
 - `loop-prompt.md` - Example loop prompt with best practices for knowledge persistence
+- `CREATE_PLAN.md` - Prompt to help generate a plan for your project
 
 To use them:
 
@@ -219,9 +187,9 @@ Create a `PLAN.md` file with tasks. At minimum:
 
 ### Server fails to start
 
-- Check if port 4096 is already in use
-- Try specifying a different port: `ocloop -p 5000`
-- Ensure OpenCode is properly installed
+- Ensure OpenCode is properly installed and available in your PATH
+- Check OpenCode logs for errors (usually in `.opencode/` directory)
+- Verify your API keys are configured correctly
 
 ### Loop seems stuck
 

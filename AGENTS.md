@@ -4,6 +4,13 @@
 Check these before web searching (load with Read tool as needed):
 - @docs/build-process.md - Details on Bun build and SolidJS integration
 
+## Code Quality Guidelines
+
+- **One logical change per commit** - Don't bundle unrelated changes. If you're doing build setup, npm config, and docs updates, those are separate commits.
+- **Verify end-to-end** - If a task says "test X", actually test it. Don't mark complete based on "it should work".
+- **Check for consistency across files** - When changing values like package names, API endpoints, or config options, search the codebase for other occurrences and update all of them.
+- **Cross-reference documentation** - When adding examples, features, or new files, update README.md to reference them. Orphaned files are undiscoverable.
+
 ## Project Operations
 - When writing to JSON files, use bash instead of the write tool.
 - When using find/glob/grep, respect .gitignore - avoid searching in `reference-repo/` and other ignored paths

@@ -1,0 +1,25 @@
+{
+  "name": "ocloop",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "ocloop": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "bun run src/index.tsx",
+    "build": "bun build src/index.tsx --outdir dist --target bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@opentui/core": "latest",
+    "@opentui/solid": "latest",
+    "solid-js": "^1.8.0",
+    "ghostty-opentui": "latest",
+    "bun-pty": "latest",
+    "@opencode/sdk": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  }
+}

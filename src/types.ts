@@ -1,0 +1,46 @@
+/**
+ * State machine type for the OCLoop harness
+ */
+export type LoopState =
+  | { type: "starting" }
+  | { type: "running"; attached: boolean; iteration: number; sessionId: string }
+  | { type: "pausing"; iteration: number; sessionId: string }
+  | { type: "paused"; attached: boolean; iteration: number }
+  | { type: "stopping" }
+  | { type: "stopped" }
+  | { type: "complete"; iterations: number }
+
+/**
+ * Actions that can be dispatched to the loop state machine
+ */
+export type LoopAction =
+  | { type: "server_ready" }
+  | { type: "toggle_attach" }
+  | { type: "toggle_pause" }
+  | { type: "quit" }
+  | { type: "session_idle" }
+  | { type: "iteration_started"; sessionId: string }
+  | { type: "plan_complete" }
+
+/**
+ * Progress information parsed from PLAN.md
+ */
+export interface PlanProgress {
+  total: number // All tasks
+  completed: number // [x] tasks
+  pending: number // [ ] tasks (non-manual, non-blocked)
+  manual: number // [MANUAL] tasks
+  blocked: number // [BLOCKED] tasks
+  automatable: number // pending (what the loop will do)
+  percentComplete: number // completed / (total - manual)
+}
+
+/**
+ * CLI arguments for OCLoop
+ */
+export interface CLIArgs {
+  port?: number
+  model?: string
+  promptFile: string
+  planFile: string
+}

@@ -807,7 +807,7 @@ Examples:
   - PTY crash
   - API errors
 
-- [ ] **5.5** Add graceful shutdown
+- [x] **5.5** Add graceful shutdown
   - Abort current session if running
   - Kill PTY
   - Stop server

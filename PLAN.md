@@ -792,16 +792,16 @@ Examples:
   - Parse remaining MANUAL/BLOCKED tasks
   - Display completion summary
 
-- [ ] **5.2** Handle prompt file loading
+- [x] **5.2** Handle prompt file loading
   - Check for `.loop-prompt.md` (error if missing)
   - Support `--prompt` CLI flag for custom path
 
-- [ ] **5.3** Handle terminal resize
+- [x] **5.3** Handle terminal resize
   - Resize PTY when terminal size changes
   - Recalculate layout dimensions
   - Update ghostty-terminal cols/rows
 
-- [ ] **5.4** Handle error states
+- [x] **5.4** Handle error states
   - Server startup failure
   - SSE connection loss
   - PTY crash

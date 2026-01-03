@@ -771,14 +771,14 @@ Examples:
   - Set up input handler for keybindings
   - Manage iteration lifecycle
 
-- [ ] **4.2** Implement entry point
+- [x] **4.2** Implement entry point
   - File: `src/index.tsx`
   - Parse CLI arguments
   - Validate prerequisites (PLAN.md exists, etc.)
   - Register ghostty-terminal component
   - Render App
 
-- [ ] **4.3** Implement API helpers
+- [x] **4.3** Implement API helpers
   - File: `src/lib/api.ts`
   - Wrap SDK client creation
   - Session creation helper

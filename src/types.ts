@@ -7,6 +7,11 @@ export interface CompletionSummary {
 }
 
 /**
+ * Error categories for OCLoop
+ */
+export type ErrorSource = "server" | "sse" | "pty" | "api" | "plan"
+
+/**
  * State machine type for the OCLoop harness
  */
 export type LoopState =
@@ -17,6 +22,7 @@ export type LoopState =
   | { type: "stopping" }
   | { type: "stopped" }
   | { type: "complete"; iterations: number; summary: CompletionSummary }
+  | { type: "error"; source: ErrorSource; message: string; recoverable: boolean }
 
 /**
  * Actions that can be dispatched to the loop state machine
@@ -29,6 +35,8 @@ export type LoopAction =
   | { type: "session_idle" }
   | { type: "iteration_started"; sessionId: string }
   | { type: "plan_complete"; summary: CompletionSummary }
+  | { type: "error"; source: ErrorSource; message: string; recoverable: boolean }
+  | { type: "retry" }
 
 /**
  * Progress information parsed from PLAN.md

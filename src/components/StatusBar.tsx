@@ -31,6 +31,8 @@ function getStateDisplay(state: LoopState): { icon: string; text: string; color:
       return { icon: "⏹", text: "STOPPED", color: "red" }
     case "complete":
       return { icon: "✓", text: "COMPLETE", color: "cyan" }
+    case "error":
+      return { icon: "!", text: "ERROR", color: "red" }
     default:
       return { icon: "?", text: "UNKNOWN", color: "gray" }
   }
@@ -88,6 +90,11 @@ export function StatusBar(props: StatusBarProps) {
         return "Waiting for current task to complete..."
       case "complete":
         return "Press any key to exit"
+      case "error":
+        if (state.recoverable) {
+          return "[R] Retry  [Q] Quit"
+        }
+        return "[Q] Quit"
       default:
         return ""
     }

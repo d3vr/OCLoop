@@ -23,8 +23,9 @@ import {
   StatusBar,
   TerminalPanel,
   QuitConfirmation,
+  ErrorDisplay,
 } from "./components"
-import type { CLIArgs, PlanProgress } from "./types"
+import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
 // UI layout constants
 // Status bar takes 3 lines: status line + keybindings + current task (optional)
@@ -247,8 +248,13 @@ export function App(props: AppProps) {
       // Refresh plan progress
       await refreshPlan()
     } catch (err) {
-      console.error("Failed to start iteration:", err)
-      // TODO: Handle error state properly
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      loop.dispatch({
+        type: "error",
+        source: "api",
+        message: `Failed to start iteration: ${errorMessage}`,
+        recoverable: true,
+      })
     }
   }
 
@@ -282,6 +288,32 @@ export function App(props: AppProps) {
 
       // Start first iteration
       startIteration()
+    }
+  })
+
+  // Server error effect - transition to error state
+  createEffect(() => {
+    if (server.status() === "error" && server.error()) {
+      loop.dispatch({
+        type: "error",
+        source: "server",
+        message: server.error()?.message || "Failed to start server",
+        recoverable: true,
+      })
+    }
+  })
+
+  // PTY error effect - transition to error state (non-recoverable for now)
+  createEffect(() => {
+    const ptyError = pty.error()
+    const ptyStatus = pty.status()
+    if (ptyStatus === "error" && ptyError) {
+      loop.dispatch({
+        type: "error",
+        source: "pty",
+        message: ptyError.message || "Terminal process failed",
+        recoverable: false,
+      })
     }
   })
 
@@ -362,6 +394,20 @@ export function App(props: AppProps) {
         process.exit(0)
       }
 
+      // Error state - handle R for retry and Q for quit
+      if (loop.isError()) {
+        if (sequence === KEYS.R_LOWER || sequence === KEYS.R_UPPER) {
+          if (loop.canRetry()) {
+            loop.dispatch({ type: "retry" })
+          }
+          return true
+        }
+        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
+          process.exit(1)
+        }
+        return true // consume other input in error state
+      }
+
       // Let opentui handle other input (scrolling, etc.)
       return false
     }
@@ -379,9 +425,31 @@ export function App(props: AppProps) {
     })
   })
 
+  /**
+   * Handle retry - restart from error state
+   */
+  function handleRetry(): void {
+    if (loop.canRetry()) {
+      loop.dispatch({ type: "retry" })
+    }
+  }
+
   // Determine if terminal should be dimmed (detached)
   const terminalDimmed = createMemo(() => {
     return !loop.isAttached()
+  })
+
+  // Extract error details for display
+  const errorDetails = createMemo(() => {
+    const state = loop.state()
+    if (state.type === "error") {
+      return {
+        source: state.source,
+        message: state.message,
+        recoverable: state.recoverable,
+      }
+    }
+    return null
   })
 
   return (
@@ -394,15 +462,26 @@ export function App(props: AppProps) {
         isAttached={loop.isAttached}
       />
 
-      {/* Terminal panel takes remaining space */}
-      <TerminalPanel
-        terminalRef={(el) => {
-          terminalRef.current = el
-        }}
-        cols={terminalCols()}
-        rows={terminalRows()}
-        dimmed={terminalDimmed()}
-      />
+      {/* Show error display in error state, otherwise show terminal */}
+      {loop.isError() && errorDetails() ? (
+        <ErrorDisplay
+          source={errorDetails()!.source}
+          message={errorDetails()!.message}
+          recoverable={errorDetails()!.recoverable}
+          onRetry={handleRetry}
+          onQuit={() => process.exit(1)}
+        />
+      ) : (
+        /* Terminal panel takes remaining space */
+        <TerminalPanel
+          terminalRef={(el) => {
+            terminalRef.current = el
+          }}
+          cols={terminalCols()}
+          rows={terminalRows()}
+          dimmed={terminalDimmed()}
+        />
+      )}
 
       {/* Quit confirmation modal (overlay) */}
       <QuitConfirmation

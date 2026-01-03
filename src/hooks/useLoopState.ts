@@ -13,8 +13,10 @@ export interface UseLoopStateReturn {
   isRunning: () => boolean
   isPaused: () => boolean
   isPausing: () => boolean
+  isError: () => boolean
   canPause: () => boolean
   canQuit: () => boolean
+  canRetry: () => boolean
   iteration: () => number
 
   // Quit confirmation modal
@@ -145,6 +147,32 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
       return state
     }
 
+    case "error": {
+      // Transition to error state from most states
+      if (
+        state.type === "starting" ||
+        state.type === "running" ||
+        state.type === "pausing" ||
+        state.type === "paused"
+      ) {
+        return {
+          type: "error",
+          source: action.source,
+          message: action.message,
+          recoverable: action.recoverable,
+        }
+      }
+      return state
+    }
+
+    case "retry": {
+      // Retry from error state - go back to starting
+      if (state.type === "error" && state.recoverable) {
+        return { type: "starting" }
+      }
+      return state
+    }
+
     default:
       return state
   }
@@ -204,6 +232,10 @@ export function useLoopState(): UseLoopStateReturn {
     return state().type === "pausing"
   })
 
+  const isError = createMemo(() => {
+    return state().type === "error"
+  })
+
   const canPause = createMemo(() => {
     const s = state()
     // Can only pause when running and detached
@@ -218,7 +250,14 @@ export function useLoopState(): UseLoopStateReturn {
     // Can quit when detached in running or paused states
     if (s.type === "running" && !s.attached) return true
     if (s.type === "paused" && !s.attached) return true
+    // Can quit from error state
+    if (s.type === "error") return true
     return false
+  })
+
+  const canRetry = createMemo(() => {
+    const s = state()
+    return s.type === "error" && s.recoverable
   })
 
   const iteration = createMemo(() => {
@@ -253,8 +292,10 @@ export function useLoopState(): UseLoopStateReturn {
     isRunning,
     isPaused,
     isPausing,
+    isError,
     canPause,
     canQuit,
+    canRetry,
     iteration,
     showingQuitConfirmation,
     showQuitConfirmation,

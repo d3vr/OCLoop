@@ -374,6 +374,154 @@ describe("loopReducer", () => {
     })
   })
 
+  describe("error action", () => {
+    it("should transition from starting to error", () => {
+      const state: LoopState = { type: "starting" }
+      const action: LoopAction = {
+        type: "error",
+        source: "server",
+        message: "Failed to start server",
+        recoverable: true,
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("error")
+      if (result.type === "error") {
+        expect(result.source).toBe("server")
+        expect(result.message).toBe("Failed to start server")
+        expect(result.recoverable).toBe(true)
+      }
+    })
+
+    it("should transition from running to error", () => {
+      const state: LoopState = {
+        type: "running",
+        attached: false,
+        iteration: 3,
+        sessionId: "session",
+      }
+      const action: LoopAction = {
+        type: "error",
+        source: "api",
+        message: "API request failed",
+        recoverable: true,
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("error")
+      if (result.type === "error") {
+        expect(result.source).toBe("api")
+        expect(result.message).toBe("API request failed")
+        expect(result.recoverable).toBe(true)
+      }
+    })
+
+    it("should transition from paused to error", () => {
+      const state: LoopState = {
+        type: "paused",
+        attached: false,
+        iteration: 2,
+      }
+      const action: LoopAction = {
+        type: "error",
+        source: "pty",
+        message: "Terminal crashed",
+        recoverable: false,
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("error")
+      if (result.type === "error") {
+        expect(result.source).toBe("pty")
+        expect(result.message).toBe("Terminal crashed")
+        expect(result.recoverable).toBe(false)
+      }
+    })
+
+    it("should transition from pausing to error", () => {
+      const state: LoopState = {
+        type: "pausing",
+        iteration: 4,
+        sessionId: "session",
+      }
+      const action: LoopAction = {
+        type: "error",
+        source: "sse",
+        message: "Connection lost",
+        recoverable: true,
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("error")
+      if (result.type === "error") {
+        expect(result.source).toBe("sse")
+        expect(result.message).toBe("Connection lost")
+      }
+    })
+
+    it("should not change state when already stopped", () => {
+      const state: LoopState = { type: "stopped" }
+      const action: LoopAction = {
+        type: "error",
+        source: "server",
+        message: "Some error",
+        recoverable: true,
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result).toEqual(state)
+    })
+  })
+
+  describe("retry action", () => {
+    it("should transition from recoverable error to starting", () => {
+      const state: LoopState = {
+        type: "error",
+        source: "server",
+        message: "Server failed",
+        recoverable: true,
+      }
+      const action: LoopAction = { type: "retry" }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("starting")
+    })
+
+    it("should not transition from non-recoverable error", () => {
+      const state: LoopState = {
+        type: "error",
+        source: "pty",
+        message: "Terminal crashed",
+        recoverable: false,
+      }
+      const action: LoopAction = { type: "retry" }
+
+      const result = loopReducer(state, action)
+
+      expect(result).toEqual(state)
+    })
+
+    it("should not change state when not in error state", () => {
+      const state: LoopState = {
+        type: "running",
+        attached: false,
+        iteration: 1,
+        sessionId: "session",
+      }
+      const action: LoopAction = { type: "retry" }
+
+      const result = loopReducer(state, action)
+
+      expect(result).toEqual(state)
+    })
+  })
+
   describe("state machine flow scenarios", () => {
     it("should handle a complete lifecycle: start → run → pause → resume → complete", () => {
       let state: LoopState = { type: "starting" }

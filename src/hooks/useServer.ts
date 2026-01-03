@@ -21,7 +21,7 @@ export interface UseServerReturn {
  * Options for the useServer hook
  */
 export interface UseServerOptions {
-  /** Port to use for the server (default: 4096, or random if 0) */
+  /** Port to use for the server. Default (0) tries 4096, then a random available port. */
   port?: number
   /** Hostname to bind to (default: 127.0.0.1) */
   hostname?: string
@@ -82,11 +82,8 @@ export function useServer(options: UseServerOptions = {}): UseServerReturn {
       hostname,
       timeout,
       signal: abortController.signal,
-    }
-
-    // Only set port if explicitly provided
-    if (port !== undefined) {
-      serverOptions.port = port
+      // Default to 0: tries port 4096 first, then falls back to random available port
+      port: port ?? 0,
     }
 
     try {

@@ -787,7 +787,7 @@ Examples:
 
 ### Phase 5: Polish and Edge Cases
 
-- [ ] **5.1** Handle .PLAN_COMPLETE detection
+- [x] **5.1** Handle .PLAN_COMPLETE detection
   - Check before each iteration
   - Parse remaining MANUAL/BLOCKED tasks
   - Display completion summary

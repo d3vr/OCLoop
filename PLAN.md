@@ -19,9 +19,9 @@ When in doubt about implementation details, consult these codebases which are av
 
 | Codebase          | Path                               | Purpose                                      |
 | ----------------- | ---------------------------------- | -------------------------------------------- |
-| OpenCode          | `./reference-repo/opencode`        | Server/client SDK, SSE events, API structure |
-| OpenTUI           | `./reference-repo/opentui`         | TUI rendering, Solid.js integration, input handling |
-| Ghostty-OpenTUI   | `./reference-repo/ghostty-opentui` | Terminal emulation, PTY rendering patterns   |
+| OpenCode          | `../opencode`        | Server/client SDK, SSE events, API structure |
+| OpenTUI           | `../opentui`         | TUI rendering, Solid.js integration, input handling |
+| Ghostty-OpenTUI   | `../ghostty-opentui` | Terminal emulation, PTY rendering patterns   |
 
 Always check these directories to understand:
 - How hooks are structured and composed

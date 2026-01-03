@@ -740,24 +740,24 @@ Examples:
 
 ### Phase 3: UI Components
 
-- [ ] **3.1** Implement StatusBar component
+- [x] **3.1** Implement StatusBar component
   - File: `src/components/StatusBar.tsx`
   - Display state, iteration, progress
   - Context-sensitive keybinding hints
   - Truncated current task display
 
-- [ ] **3.2** Implement ProgressIndicator component
+- [x] **3.2** Implement ProgressIndicator component
   - File: `src/components/ProgressIndicator.tsx`
   - Render progress bar with percentage
   - Configurable width and colors
 
-- [ ] **3.3** Implement TerminalPanel component
+- [x] **3.3** Implement TerminalPanel component
   - File: `src/components/TerminalPanel.tsx`
   - Wrap ghostty-terminal
   - Apply dimming based on attach state
   - Handle resize events
 
-- [ ] **3.4** Implement QuitConfirmation component
+- [x] **3.4** Implement QuitConfirmation component
   - File: `src/components/QuitConfirmation.tsx`
   - Modal overlay with "Quit OCLoop? [Y/N]" prompt
   - Centered on screen

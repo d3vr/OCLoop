@@ -704,7 +704,7 @@ Examples:
   - Configure `tsconfig.json` for Solid.js + opentui
   - Configure `bunfig.toml` with preload
 
-- [ ] **1.2** Implement PLAN.md parser
+- [x] **1.2** Implement PLAN.md parser
   - File: `src/lib/plan-parser.ts`
   - Parse checkboxes, [MANUAL], [BLOCKED] items
   - Return PlanProgress object

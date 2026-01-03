@@ -731,7 +731,7 @@ Examples:
   - Handle reconnection
   - Filter events by current session
 
-- [ ] **2.3** Implement PTY management hook
+- [x] **2.3** Implement PTY management hook
   - File: `src/hooks/usePTY.ts`
   - Spawn `opencode attach` in PTY
   - Feed output to ghostty-terminal ref

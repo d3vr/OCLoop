@@ -821,7 +821,7 @@ Examples:
   - Configuration options
   - Troubleshooting
 
-- [ ] **6.2** Create example files
+- [x] **6.2** Create example files
   - Example PLAN.md
   - Example .loop-prompt.md
 

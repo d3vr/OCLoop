@@ -1,2 +1,9 @@
+node_modules/
+dist/
+bun.lock
+bun.lockb
 .loop-prompt.md
 .opencode
+.PLAN_COMPLETE
+.DS_Store
+*.log

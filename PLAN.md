@@ -825,7 +825,7 @@ Examples:
   - Example PLAN.md
   - Example .loop-prompt.md
 
-- [ ] **6.3** Set up npm publishing
+- [x] **6.3** Set up npm publishing
   - Configure package.json for publishing
   - Add bin entry for CLI
   - Test global installation

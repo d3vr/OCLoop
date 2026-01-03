@@ -1,7 +1,13 @@
 
+## Research
+
+Check these before web searching (load with Read tool as needed):
+- @docs/build-process.md - Details on Bun build and SolidJS integration
+
 ## Project Operations
 - When writing to JSON files, use bash instead of the write tool.
 - When using find/glob/grep, respect .gitignore - avoid searching in `reference-repo/` and other ignored paths
 - Package manager: `bun` (not npm)
-- Build: `bun run build`
+- Build: `bun run build` (runs `build.ts` with SolidJS plugin)
 - Tests: `bun test` from repo root
+- Lint must pass before commit: `bun run lint` (if available)

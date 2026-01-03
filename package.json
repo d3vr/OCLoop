@@ -2,12 +2,19 @@
   "name": "ocloop",
   "version": "0.1.0",
   "type": "module",
+  "description": "A loop harness for opencode to execute tasks from PLAN.md",
+  "author": "OpenCode AI",
+  "license": "MIT",
   "bin": {
     "ocloop": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "bun run src/index.tsx",
-    "build": "bun build src/index.tsx --outdir dist --target bun",
+    "build": "bun run build.ts",
+    "prepublishOnly": "bun run build",
     "test": "bun test"
   },
   "dependencies": {

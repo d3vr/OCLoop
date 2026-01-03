@@ -19,6 +19,7 @@ import { useLoopState } from "./hooks/useLoopState"
 import { usePTY } from "./hooks/usePTY"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
+import { shutdownManager } from "./lib/shutdown"
 import {
   StatusBar,
   TerminalPanel,
@@ -259,10 +260,24 @@ export function App(props: AppProps) {
   }
 
   /**
-   * Handle quit - abort session and cleanup
+   * Handle quit - abort session and cleanup gracefully
    */
   async function handleQuit(): Promise<void> {
     loop.dispatch({ type: "quit" })
+
+    // Abort current session if running
+    const currentSessionId = sessionId()
+    if (currentSessionId) {
+      try {
+        const url = server.url()
+        if (url) {
+          const client = createOpencodeClient({ baseUrl: url })
+          await client.session.abort({ sessionID: currentSessionId })
+        }
+      } catch {
+        // Ignore errors when aborting - we're shutting down anyway
+      }
+    }
 
     // Kill PTY
     pty.kill()
@@ -415,12 +430,16 @@ export function App(props: AppProps) {
     // Prepend our input handler to process before opentui
     renderer.prependInputHandler(inputHandler)
 
+    // Register shutdown handler for SIGINT/SIGTERM signals
+    shutdownManager.register(handleQuit)
+
     // Initial plan parsing
     refreshPlan()
 
     // Cleanup on unmount
     onCleanup(() => {
       renderer.removeInputHandler(inputHandler)
+      shutdownManager.unregister()
       pty.kill()
     })
   })

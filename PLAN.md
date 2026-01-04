@@ -40,7 +40,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
   - `launchTerminal(config, attachCmd)` - Spawns detached process, returns `{ success, error? }`
   - Types: `KnownTerminal`, `LaunchResult`
 
-- [ ] Create `src/lib/clipboard.ts` - Clipboard operations
+- [x] Create `src/lib/clipboard.ts` - Clipboard operations
   - `detectClipboardTool()` - Checks `$WAYLAND_DISPLAY` for wl-copy, falls back to xclip/xsel
   - `copyToClipboard(text)` - Spawns clipboard tool, pipes text to stdin
   - Returns `{ success: boolean, error?: string }`

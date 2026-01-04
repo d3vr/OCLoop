@@ -229,7 +229,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - Filled segments: `theme.primary`
     - Empty segments: `theme.borderSubtle`
 
-- [ ] **Refactor QuitConfirmation to use Dialog system**
+- [x] **Refactor QuitConfirmation to use Dialog system**
   - Modify `src/components/QuitConfirmation.tsx`
   - Remove the component's own overlay/positioning logic
   - Convert to a simple content component that gets wrapped by Dialog

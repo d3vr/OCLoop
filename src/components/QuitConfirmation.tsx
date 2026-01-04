@@ -1,5 +1,6 @@
 import { Show } from "solid-js"
-import { useTerminalDimensions } from "@opentui/solid"
+import { Dialog } from "../ui/Dialog"
+import { useTheme } from "../context/ThemeContext"
 
 /**
  * Props for the QuitConfirmation component
@@ -25,6 +26,8 @@ export interface QuitConfirmationProps {
  * Renders a centered modal overlay with "Quit OCLoop? [Y/N]" prompt.
  * The modal is displayed when visible is true.
  *
+ * Uses the Dialog component for consistent styling with other modals.
+ *
  * Note: Key handling (Y/N/Escape) is done by the parent input handler,
  * not by this component. The onConfirm and onCancel callbacks are
  * provided for the parent to call when appropriate keys are pressed.
@@ -39,60 +42,26 @@ export interface QuitConfirmationProps {
  * ```
  */
 export function QuitConfirmation(props: QuitConfirmationProps) {
-  const dimensions = useTerminalDimensions()
-
-  // Modal dimensions
-  const modalWidth = 28
-  const modalHeight = 5
-
-  // Calculate centered position
-  const left = () => Math.floor((dimensions().width - modalWidth) / 2)
-  const top = () => Math.floor((dimensions().height - modalHeight) / 2)
+  const { theme } = useTheme()
 
   return (
     <Show when={props.visible}>
-      {/* Overlay background - covers entire screen with dimmed effect */}
-      <box
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: dimensions().width,
-          height: dimensions().height,
-          backgroundColor: "black",
-          opacity: 0.5,
-        }}
-      />
-
-      {/* Modal box - centered on screen */}
-      <box
-        style={{
-          position: "absolute",
-          top: top(),
-          left: left(),
-          width: modalWidth,
-          height: modalHeight,
-          border: true,
-          borderStyle: "double",
-          borderColor: "yellow",
-          backgroundColor: "#1a1a1a",
-          padding: 1,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <box style={{ alignItems: "center" }}>
+      <Dialog onClose={props.onCancel} title="" width={30} height={6}>
+        <box style={{ flexDirection: "column", alignItems: "center" }}>
+          {/* Title */}
           <text>
-            <span style={{ fg: "yellow" }}>Quit OCLoop?</span>
+            <span style={{ fg: theme().warning, bold: true }}>Quit OCLoop?</span>
           </text>
+
+          {/* Options */}
           <text style={{ marginTop: 1 }}>
-            <span style={{ fg: "green" }}>[Y]</span>
-            <span style={{ fg: "white" }}>es  </span>
-            <span style={{ fg: "red" }}>[N]</span>
-            <span style={{ fg: "white" }}>o</span>
+            <span style={{ fg: theme().success }}>[Y]</span>
+            <span style={{ fg: theme().text }}>es  </span>
+            <span style={{ fg: theme().error }}>[N]</span>
+            <span style={{ fg: theme().text }}>o</span>
           </text>
         </box>
-      </box>
+      </Dialog>
     </Show>
   )
 }

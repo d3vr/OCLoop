@@ -293,6 +293,30 @@ describe("loopReducer", () => {
         expect(result.summary).toEqual({ manualTasks: [], blockedTasks: [] })
       }
     })
+
+    it("should include rawContent in summary when present", () => {
+      const state: LoopState = {
+        type: "running",
+        iteration: 5,
+        sessionId: "session",
+      }
+      const summary = {
+        manualTasks: [],
+        blockedTasks: [],
+        rawContent: "Raw content data",
+      }
+      const action: LoopAction = {
+        type: "plan_complete",
+        summary,
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("complete")
+      if (result.type === "complete") {
+        expect(result.summary.rawContent).toBe("Raw content data")
+      }
+    })
   })
 
   describe("error action", () => {

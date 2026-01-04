@@ -355,6 +355,7 @@ function AppContent(props: AppProps) {
       summary = {
         manualTasks: [...new Set([...summary.manualTasks, ...completeSummary.manualTasks])],
         blockedTasks: [...new Set([...summary.blockedTasks, ...completeSummary.blockedTasks])],
+        rawContent: completeSummary.rawContent
       }
       
       // Delete persisted loop state on completion
@@ -638,6 +639,7 @@ function AppContent(props: AppProps) {
           totalTime={totalTime}
           manualTasks={state.summary.manualTasks}
           blockedTasks={state.summary.blockedTasks}
+          rawContent={state.summary.rawContent}
           onClose={() => process.exit(0)}
         />
       ))

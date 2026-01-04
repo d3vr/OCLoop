@@ -26,6 +26,8 @@ export interface DialogCompletionProps {
   manualTasks: string[]
   /** List of tasks marked as [BLOCKED: reason] */
   blockedTasks: string[]
+  /** Raw content of the completion file */
+  rawContent?: string
   /** Callback when dialog should close */
   onClose: () => void
 }
@@ -51,11 +53,21 @@ export function DialogCompletion(props: DialogCompletionProps) {
   const { theme } = useTheme()
 
   const hasRemainingTasks = () =>
-    props.manualTasks.length > 0 || props.blockedTasks.length > 0
+    props.manualTasks.length > 0 || props.blockedTasks.length > 0 || (props.rawContent && props.rawContent.trim().length > 0)
 
   // Calculate dialog height based on content
   const dialogHeight = () => {
     let height = 6 // Base: title + summary + footer + padding
+    
+    // If we have raw content, use it with a max height
+    if (props.rawContent && props.rawContent.trim().length > 0) {
+       // Limit to 12 lines max for the content area
+       const lines = props.rawContent.trim().split('\n').length;
+       height += Math.min(lines, 12);
+       return Math.max(8, height);
+    }
+    
+    // Fallback to structured calculation
     if (props.manualTasks.length > 0) {
       height += 1 + props.manualTasks.length // Header + items
     }
@@ -86,34 +98,50 @@ export function DialogCompletion(props: DialogCompletionProps) {
           <span style={{ fg: theme().textMuted }}>)</span>
         </text>
 
-        {/* Manual tasks section */}
-        <Show when={props.manualTasks.length > 0}>
-          <text style={{ marginTop: 1 }}>
-            <span style={{ fg: theme().warning, bold: true }}>Manual Tasks</span>
-          </text>
-          <For each={props.manualTasks}>
-            {(task) => (
-              <text>
-                <span style={{ fg: theme().textMuted }}>  • </span>
-                <span style={{ fg: theme().text }}>{task}</span>
-              </text>
-            )}
-          </For>
+        {/* Raw content display (priority) */}
+        <Show when={props.rawContent && props.rawContent.trim().length > 0}>
+           <box 
+             style={{ marginTop: 1, flexDirection: "column", maxHeight: 12, overflow: "hidden" }}
+           >
+             <text>
+                <span style={{ fg: theme().text }}>{props.rawContent}</span>
+             </text>
+           </box>
         </Show>
 
-        {/* Blocked tasks section */}
-        <Show when={props.blockedTasks.length > 0}>
-          <text style={{ marginTop: 1 }}>
-            <span style={{ fg: theme().error, bold: true }}>Blocked Tasks</span>
-          </text>
-          <For each={props.blockedTasks}>
-            {(task) => (
-              <text>
-                <span style={{ fg: theme().textMuted }}>  • </span>
-                <span style={{ fg: theme().text }}>{task}</span>
+        {/* Fallback: Structured display if no raw content */}
+        <Show when={!props.rawContent || props.rawContent.trim().length === 0}>
+          <box style={{ flexDirection: "column" }}>
+            {/* Manual tasks section */}
+            <Show when={props.manualTasks.length > 0}>
+              <text style={{ marginTop: 1 }}>
+                <span style={{ fg: theme().warning, bold: true }}>Manual Tasks</span>
               </text>
-            )}
-          </For>
+              <For each={props.manualTasks}>
+                {(task) => (
+                  <text>
+                    <span style={{ fg: theme().textMuted }}>  • </span>
+                    <span style={{ fg: theme().text }}>{task}</span>
+                  </text>
+                )}
+              </For>
+            </Show>
+
+            {/* Blocked tasks section */}
+            <Show when={props.blockedTasks.length > 0}>
+              <text style={{ marginTop: 1 }}>
+                <span style={{ fg: theme().error, bold: true }}>Blocked Tasks</span>
+              </text>
+              <For each={props.blockedTasks}>
+                {(task) => (
+                  <text>
+                    <span style={{ fg: theme().textMuted }}>  • </span>
+                    <span style={{ fg: theme().text }}>{task}</span>
+                  </text>
+                )}
+              </For>
+            </Show>
+          </box>
         </Show>
 
         {/* No remaining tasks message */}

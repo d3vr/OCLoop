@@ -207,10 +207,11 @@ export async function parseCompletionFile(completePath: string): Promise<Complet
     
     // The .loop-complete file is expected to list remaining tasks
     // Parse any [MANUAL] or [BLOCKED] items from it
-    return parseRemainingTasks(content)
+    const summary = parseRemainingTasks(content)
+    return { ...summary, rawContent: content }
   } catch {
     // If the file doesn't exist or can't be read, return empty summary
-    return { manualTasks: [], blockedTasks: [] }
+    return { manualTasks: [], blockedTasks: [], rawContent: "" }
   }
 }
 

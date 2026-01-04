@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { parsePlan, parseRemainingTasks, getCurrentTaskFromContent, parseTaskLine } from "./plan-parser"
+import { parsePlan, parseRemainingTasks, getCurrentTaskFromContent, parseTaskLine, parseCompletionFile } from "./plan-parser"
 
 describe("parseTaskLine", () => {
   it("should parse completed tasks", () => {
@@ -422,5 +422,23 @@ describe("getCurrentTaskFromContent", () => {
     const result = getCurrentTaskFromContent(content)
 
     expect(result).toBe("Create `src/components/Dashboard.tsx` with props")
+  })
+})
+
+describe("parseCompletionFile", () => {
+  it("should return rawContent", async () => {
+    const path = "/tmp/test-completion-file.md"
+    const content = "- [MANUAL] test task"
+    await Bun.write(path, content)
+    
+    const result = await parseCompletionFile(path)
+    expect(result.rawContent).toBe(content)
+    expect(result.manualTasks).toEqual(["test task"])
+  })
+  
+  it("should return empty string for non-existent file", async () => {
+     const result = await parseCompletionFile("/non/existent/path")
+     expect(result.rawContent).toBe("")
+     expect(result.manualTasks).toEqual([])
   })
 })

@@ -4,6 +4,7 @@
 export interface CompletionSummary {
   manualTasks: string[]  // Descriptions of [MANUAL] tasks
   blockedTasks: string[] // Descriptions of [BLOCKED: reason] tasks
+  rawContent?: string    // Raw content of the completion file
 }
 
 /**

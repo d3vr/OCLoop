@@ -37,6 +37,7 @@ import {
 import { copyToClipboard } from "./lib/clipboard"
 import { ThemeProvider } from "./context/ThemeContext"
 import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
+import { ToastProvider, Toast, useToast } from "./context/ToastContext"
 import {
   Dashboard,
   QuitConfirmation,
@@ -64,8 +65,11 @@ export function App(props: AppProps) {
   return (
     <ThemeProvider>
       <DialogProvider>
-        <AppContent {...props} />
-        <DialogStack />
+        <ToastProvider>
+          <AppContent {...props} />
+          <DialogStack />
+          <Toast />
+        </ToastProvider>
       </DialogProvider>
     </ThemeProvider>
   )
@@ -89,6 +93,7 @@ export function App(props: AppProps) {
 function AppContent(props: AppProps) {
   const renderer = useRenderer()
   const dialog = useDialog()
+  const toast = useToast()
 
   // Server management
   const server = useServer({
@@ -110,6 +115,7 @@ function AppContent(props: AppProps) {
   const [showingTerminalConfig, setShowingTerminalConfig] = createSignal(false)
   const [terminalError, setTerminalError] = createSignal<{ name: string; error: string } | null>(null)
   const [availableTerminals, setAvailableTerminals] = createSignal<KnownTerminal[]>([])
+  const [lastSessionId, setLastSessionId] = createSignal<string | undefined>(undefined)
 
   // Persisted loop state (loaded on startup)
   const [persistedState, setPersistedState] = createSignal<LoopStateFile | null>(null)
@@ -212,6 +218,7 @@ function AppContent(props: AppProps) {
     handlers: {
       onSessionCreated: (id) => {
         activityLog.addEvent("session_start", `Session started: ${id.substring(0, 8)}`)
+        setLastSessionId(id)
       },
       onSessionError: (id, error) => {
         activityLog.addEvent("error", `Session error: ${error}`)
@@ -431,6 +438,7 @@ function AppContent(props: AppProps) {
 
       // Dispatch new_session to update debug state with session ID
       loop.dispatch({ type: "new_session", sessionId: newSessionId })
+      setLastSessionId(newSessionId)
       
       activityLog.addEvent("session_start", `Debug session: ${newSessionId.substring(0, 8)}`)
 
@@ -709,7 +717,7 @@ function AppContent(props: AppProps) {
      setShowingTerminalConfig(false)
      
      // Launch!
-     const sid = sessionId()
+     const sid = sessionId() || lastSessionId()
      if (sid) {
         launchConfiguredTerminal(sid, newConfig.terminal)
      }
@@ -731,28 +739,30 @@ function AppContent(props: AppProps) {
      setShowingTerminalConfig(false)
      
      // Launch!
-     const sid = sessionId()
+     const sid = sessionId() || lastSessionId()
      if (sid) {
         launchConfiguredTerminal(sid, newConfig.terminal)
      }
   }
   
   const onConfigCopy = () => {
-     const sid = sessionId()
+     const sid = sessionId() || lastSessionId()
      const url = server.url()
      if (sid && url) {
         const cmd = getAttachCommand(url, sid)
         copyToClipboard(cmd)
+        toast.show({ variant: "success", message: "Copied to clipboard" })
      }
      setShowingTerminalConfig(false)
   }
   
   const onErrorCopy = () => {
-     const sid = sessionId()
+     const sid = sessionId() || lastSessionId()
      const url = server.url()
      if (sid && url) {
         const cmd = getAttachCommand(url, sid)
         copyToClipboard(cmd)
+        toast.show({ variant: "success", message: "Copied to clipboard" })
      }
      setTerminalError(null)
   }
@@ -768,9 +778,11 @@ function AppContent(props: AppProps) {
     
       // Ctrl+\ (0x1c) - always handle
       if (sequence === KEYS.CTRL_BACKSLASH) {
-        const sid = sessionId()
+        const sid = sessionId() || lastSessionId()
         if (sid) {
            handleTerminalLaunch(sid)
+        } else {
+           toast.show({ variant: "info", message: "No active session to attach to" })
         }
         return true
       }
@@ -928,7 +940,7 @@ function AppContent(props: AppProps) {
       <Show when={showingTerminalConfig()}>
          <DialogTerminalConfig
             availableTerminals={availableTerminals()}
-            attachCommand={sessionId() && server.url() ? getAttachCommand(server.url()!, sessionId()!) : ""}
+            attachCommand={(sessionId() || lastSessionId()) && server.url() ? getAttachCommand(server.url()!, (sessionId() || lastSessionId())!) : ""}
             onSelect={onConfigSelect}
             onCustom={onConfigCustom}
             onCopy={onConfigCopy}
@@ -940,7 +952,7 @@ function AppContent(props: AppProps) {
          <DialogTerminalError
             terminalName={terminalError()?.name || "Terminal"}
             errorMessage={terminalError()?.error || "Unknown error"}
-            attachCommand={sessionId() && server.url() ? getAttachCommand(server.url()!, sessionId()!) : ""}
+            attachCommand={(sessionId() || lastSessionId()) && server.url() ? getAttachCommand(server.url()!, (sessionId() || lastSessionId())!) : ""}
             onCopy={onErrorCopy}
             onClose={() => setTerminalError(null)}
          />

@@ -883,9 +883,12 @@ function AppContent(props: AppProps) {
         return true
       }
 
-      // Complete state - any key to exit
+      // Complete state - Q to exit
       if (loop.state().type === "complete") {
-        process.exit(0)
+        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
+          process.exit(0)
+        }
+        return true
       }
 
       // Error state - handle R for retry and Q for quit

@@ -125,7 +125,7 @@ export function DialogCompletion(props: DialogCompletionProps) {
 
         {/* Footer */}
         <text style={{ marginTop: 1 }}>
-          <span style={{ fg: theme().textMuted }}>Press any key to exit</span>
+          <span style={{ fg: theme().textMuted }}>Press Q to exit</span>
         </text>
       </box>
     </Dialog>

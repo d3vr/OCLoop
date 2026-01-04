@@ -109,9 +109,6 @@ export function Dialog(props: DialogProps) {
           width: dialogWidth(),
           height: dialogHeight(),
           backgroundColor: theme().backgroundPanel,
-          border: true,
-          borderStyle: "single",
-          borderColor: theme().borderActive,
           flexDirection: "column",
         }}
       >

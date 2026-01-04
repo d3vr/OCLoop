@@ -73,7 +73,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
 
 ### Phase 2: State & Logic
 
-- [ ] **Create loop state persistence utility**
+- [x] **Create loop state persistence utility**
   - Create `src/lib/loop-state.ts`
   - Define schema:
     ```ts
@@ -91,7 +91,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - `deleteLoopState(): Promise<void>` - Remove file on completion
   - Handle file not found, parse errors gracefully (return null)
 
-- [ ] **Create .gitignore auto-update utility**
+- [x] **Create .gitignore auto-update utility**
   - Add to `src/lib/loop-state.ts`:
     - `ensureGitignore(): Promise<void>`
     - Check if `.gitignore` exists in cwd

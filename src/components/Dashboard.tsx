@@ -14,7 +14,6 @@ export interface DashboardProps {
   progress: PlanProgress | null
   stats: UseLoopStatsReturn
   currentTask: string | null
-  isAttached: boolean
 }
 
 /**
@@ -114,14 +113,9 @@ export function Dashboard(props: DashboardProps) {
     return `[${progress.completed}/${progress.total - progress.manual}]`
   })
 
-  // Keybinding hints based on state and attached mode
+  // Keybinding hints based on state
   const keybindHints = createMemo(() => {
     const state = props.state
-    const attached = props.isAttached
-
-    if (attached) {
-      return [{ key: "Ctrl+\\", desc: "detach" }]
-    }
 
     switch (state.type) {
       case "ready":
@@ -131,13 +125,13 @@ export function Dashboard(props: DashboardProps) {
         ]
       case "running":
         return [
-          { key: "Ctrl+\\", desc: "attach" },
+          { key: "Ctrl+\\", desc: "terminal" },
           { key: "Space", desc: "pause" },
           { key: "Q", desc: "quit" },
         ]
       case "paused":
         return [
-          { key: "Ctrl+\\", desc: "attach" },
+          { key: "Ctrl+\\", desc: "terminal" },
           { key: "Space", desc: "resume" },
           { key: "Q", desc: "quit" },
         ]
@@ -154,13 +148,10 @@ export function Dashboard(props: DashboardProps) {
         }
         return [{ key: "Q", desc: "quit" }]
       case "debug":
-        if (attached) {
-          return [{ key: "Ctrl+\\", desc: "detach" }]
-        }
         // Detached in debug mode
         if (state.sessionId) {
           return [
-            { key: "Ctrl+\\", desc: "attach" },
+            { key: "Ctrl+\\", desc: "terminal" },
             { key: "N", desc: "new session" },
             { key: "Q", desc: "quit" },
           ]

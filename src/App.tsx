@@ -33,7 +33,6 @@ import { ThemeProvider } from "./context/ThemeContext"
 import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
 import {
   Dashboard,
-  TerminalPanel,
   QuitConfirmation,
   DialogResume,
   DialogCompletion,
@@ -697,7 +696,7 @@ function AppContent(props: AppProps) {
     const inputHandler = (sequence: string): boolean => {
       // Ctrl+\ (0x1c) - always handle, toggle attach/detach
       if (sequence === KEYS.CTRL_BACKSLASH) {
-        loop.dispatch({ type: "toggle_attach" })
+        // loop.dispatch({ type: "toggle_attach" }) // Removed in refactor
         return true
       }
 
@@ -746,7 +745,7 @@ function AppContent(props: AppProps) {
       // Debug mode handling
       if (loop.isDebug()) {
         // If attached, forward everything to PTY
-        if (loop.isAttached()) {
+        if (false) { // was loop.isAttached()
           pty.write(sequence)
           return true
         }
@@ -784,7 +783,7 @@ function AppContent(props: AppProps) {
       }
 
       // If attached, forward everything to PTY
-      if (loop.isAttached()) {
+      if (false) { // was loop.isAttached()
         pty.write(sequence)
         return true
       }
@@ -875,23 +874,15 @@ function AppContent(props: AppProps) {
     <box style={{ flexDirection: "column", flexGrow: 1 }}>
       {/* Dashboard at the top */}
       <Dashboard
-        isActive={!loop.isAttached()}
+        isActive={true}
         state={loop.state()}
         progress={planProgress()}
         stats={stats}
         currentTask={currentTask() ?? null}
-        isAttached={loop.isAttached()}
       />
 
       {/* Terminal panel takes remaining space */}
-      <TerminalPanel
-        terminalRef={(el) => {
-          terminalRef.current = el
-        }}
-        cols={terminalCols()}
-        rows={terminalRows()}
-        isActive={loop.isAttached()}
-      />
+      {/* TerminalPanel removed */}
 
       {/* Quit confirmation modal (overlay) */}
       <QuitConfirmation

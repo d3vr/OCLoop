@@ -70,7 +70,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 4: Terminal Config Dialog
 
-- [ ] Create `src/components/DialogTerminalConfig.tsx` - First-time terminal configuration
+- [x] Create `src/components/DialogTerminalConfig.tsx` - First-time terminal configuration
   - Props: `{ availableTerminals, attachCommand, onSelect, onCopy, onCancel }`
   - Two view states: `"list"` and `"custom"`
   - List view:
@@ -87,7 +87,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
     - Footer keybinds: `Enter` save | `Esc` back
   - Keyboard navigation: `↑/↓` or `j/k` for list, `Tab` between inputs
 
-- [ ] Create `src/components/DialogTerminalError.tsx` - Terminal launch failure dialog
+- [x] Create `src/components/DialogTerminalError.tsx` - Terminal launch failure dialog
   - Props: `{ terminalName, errorMessage, attachCommand, onCopy, onClose }`
   - Title: "Terminal Launch Failed"
   - Shows error message

@@ -210,7 +210,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - Message: "Found interrupted session at iteration {iteration}"
     - Buttons: "[Y] Resume  [N] Start Fresh"
 
-- [ ] **Refactor TerminalPanel component**
+- [x] **Refactor TerminalPanel component**
   - Modify `src/components/TerminalPanel.tsx`
   - Remove hardcoded styles:
     - Remove `border: true`, `borderStyle: "single"`

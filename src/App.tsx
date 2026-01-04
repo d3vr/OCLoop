@@ -471,11 +471,6 @@ export function App(props: AppProps) {
     }
   }
 
-  // Determine if terminal should be dimmed (detached)
-  const terminalDimmed = createMemo(() => {
-    return !loop.isAttached()
-  })
-
   // Extract error details for display
   const errorDetails = createMemo(() => {
     const state = loop.state()
@@ -516,7 +511,7 @@ export function App(props: AppProps) {
           }}
           cols={terminalCols()}
           rows={terminalRows()}
-          dimmed={terminalDimmed()}
+          isActive={loop.isAttached()}
         />
       )}
 

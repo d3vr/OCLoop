@@ -1,4 +1,5 @@
 import type { GhosttyTerminalRenderable } from "ghostty-opentui/terminal-buffer"
+import { useTheme } from "../context/ThemeContext"
 
 /**
  * Props for the TerminalPanel component
@@ -18,17 +19,19 @@ export interface TerminalPanelProps {
    */
   rows: number
   /**
-   * Whether the terminal should be dimmed (when detached)
+   * Whether the terminal panel is active (focused)
+   * When active: bright border, full opacity, cursor shown
+   * When inactive: subtle border, reduced opacity, cursor hidden
    */
-  dimmed: boolean
+  isActive: boolean
 }
 
 /**
  * TerminalPanel component
  *
  * Wraps the ghostty-terminal component with:
- * - Border styling
- * - Opacity based on dimmed state
+ * - Theme-aware border styling
+ * - Opacity based on active state
  * - Proper sizing based on cols/rows
  *
  * The terminal is used in persistent mode for efficient streaming of PTY output.
@@ -41,7 +44,7 @@ export interface TerminalPanelProps {
  *   terminalRef={(el) => terminalRef = el}
  *   cols={120}
  *   rows={30}
- *   dimmed={!isAttached()}
+ *   isActive={isAttached()}
  * />
  *
  * // Later, to feed data:
@@ -49,14 +52,16 @@ export interface TerminalPanelProps {
  * ```
  */
 export function TerminalPanel(props: TerminalPanelProps) {
+  const { theme } = useTheme()
+
   return (
     <box
       style={{
         border: true,
         borderStyle: "single",
-        borderColor: props.dimmed ? "gray" : "cyan",
+        borderColor: props.isActive ? theme().primary : theme().borderSubtle,
         flexGrow: 1,
-        opacity: props.dimmed ? 0.7 : 1,
+        opacity: props.isActive ? 1 : 0.7,
         overflow: "hidden",
       }}
     >
@@ -65,7 +70,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
         cols={props.cols}
         rows={props.rows}
         persistent={true}
-        showCursor={!props.dimmed}
+        showCursor={props.isActive}
         cursorStyle="block"
       />
     </box>

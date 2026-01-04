@@ -7,6 +7,9 @@ A loop harness that orchestrates [OpenCode](https://opencode.ai) to execute task
 - **Automated task execution**: Execute a plan one task at a time, each in a fresh context window
 - **Full visibility**: See the OpenCode TUI at all times, attach to interact when needed
 - **Knowledge persistence**: Learnings are documented in AGENTS.md and docs/ across iterations
+- **Session recovery**: Automatically resume interrupted runs from where you left off
+- **Smart Dashboard**: Visual dashboard with live iteration timing, averages, and ETA
+- **Theme integration**: Automatically inherits your OpenCode theme configuration
 - **Clean boundaries**: New session per iteration, pause between iterations
 - **Progress tracking**: Visual progress bar and status indicators
 
@@ -79,6 +82,7 @@ Examples:
 | Key       | Condition     | Action                       |
 | --------- | ------------- | ---------------------------- |
 | `Ctrl+\`  | Always        | Toggle attach/detach         |
+| `S`       | Ready state   | Start iterations             |
 | `Space`   | Detached only | Toggle pause/resume          |
 | `Q`       | Detached only | Show quit confirmation       |
 | `R`       | Error state   | Retry after recoverable error|
@@ -133,14 +137,19 @@ The loop ends when:
 
 OCLoop respects OpenCode's environment variables for API keys and configuration. See [OpenCode documentation](https://opencode.ai/docs) for details.
 
+### Theming
+
+OCLoop automatically detects your OpenCode theme configuration from `~/.local/state/opencode/kv.json` and applies it to the dashboard. If no theme is found, it defaults to the OpenCode theme.
+
 ### Files
 
-| File              | Purpose                                          |
-| ----------------- | ------------------------------------------------ |
-| `PLAN.md`         | Task list to execute                             |
-| `.loop-prompt.md` | Prompt sent to OpenCode each iteration           |
-| `.PLAN_COMPLETE`  | Created when all automatable tasks are complete  |
-| `AGENTS.md`       | Persistent knowledge for OpenCode across sessions|
+| File                | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `PLAN.md`           | Task list to execute                             |
+| `.loop-prompt.md`   | Prompt sent to OpenCode each iteration           |
+| `.PLAN_COMPLETE`    | Created when all automatable tasks are complete  |
+| `AGENTS.md`         | Persistent knowledge for OpenCode across sessions|
+| `.loop-state.json`  | Auto-saved state for resuming interrupted runs   |
 
 ## Examples
 

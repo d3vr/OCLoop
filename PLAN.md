@@ -124,7 +124,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
   - Format helper: `formatDuration(ms: number): string` → `"1m 23s"`, `"45s"`, `"2h 15m"`
   - Return `"N/A"` for estimates when no history data available
 
-- [ ] **Add current task detection to plan parser**
+- [x] **Add current task detection to plan parser**
   - Modify `src/lib/plan-parser.ts`
   - Add function `getCurrentTask(planFile: string): Promise<string | null>`
   - Parse PLAN.md and find first line matching `- [ ]` pattern

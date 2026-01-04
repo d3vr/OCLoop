@@ -2,8 +2,7 @@ node_modules/
 dist/
 bun.lock
 bun.lockb
-.loop-prompt.md
+.loop-*
 .opencode
-.PLAN_COMPLETE
 .DS_Store
 *.log

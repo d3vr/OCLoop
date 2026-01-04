@@ -195,7 +195,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - If recoverable: "[R] Retry  [Q] Quit"
     - If not recoverable: "[Q] Quit"
 
-- [ ] **Create DialogResume component**
+- [x] **Create DialogResume component**
   - Create `src/components/DialogResume.tsx`
   - Props:
     ```ts

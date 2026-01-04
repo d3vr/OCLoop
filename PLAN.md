@@ -222,7 +222,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - Opacity: `isActive ? 1 : 0.7`
   - Keep `showCursor={isActive}` behavior
 
-- [ ] **Refactor ProgressIndicator component**
+- [x] **Refactor ProgressIndicator component**
   - Modify `src/components/ProgressIndicator.tsx`
   - Import and use `useTheme()`
   - Replace hardcoded colors:

@@ -1,4 +1,5 @@
 import { createMemo } from "solid-js"
+import { useTheme } from "../context/ThemeContext"
 
 /**
  * Props for the ProgressIndicator component
@@ -14,6 +15,7 @@ export interface ProgressIndicatorProps {
  *
  * Renders a progress bar with percentage display.
  * Uses block characters for filled and light shade for empty portions.
+ * Colors are derived from the current theme.
  *
  * @example
  * ```tsx
@@ -22,6 +24,8 @@ export interface ProgressIndicatorProps {
  * ```
  */
 export function ProgressIndicator(props: ProgressIndicatorProps) {
+  const { theme } = useTheme()
+
   const percentage = createMemo(() => {
     if (props.total === 0) return 100
     return Math.round((props.completed / props.total) * 100)
@@ -46,9 +50,9 @@ export function ProgressIndicator(props: ProgressIndicatorProps) {
 
   return (
     <text>
-      <span style={{ fg: "green" }}>{filledChars()}</span>
-      <span style={{ fg: "gray" }}>{emptyChars()}</span>
-      <span style={{ fg: "white" }}> {percentage()}%</span>
+      <span style={{ fg: theme().primary }}>{filledChars()}</span>
+      <span style={{ fg: theme().borderSubtle }}>{emptyChars()}</span>
+      <span style={{ fg: theme().text }}> {percentage()}%</span>
     </text>
   )
 }

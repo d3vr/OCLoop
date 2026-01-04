@@ -81,7 +81,7 @@ export function DialogCompletion(props: DialogCompletionProps) {
   }
 
   return (
-    <Dialog onClose={props.onClose} title="" width={60} height={dialogHeight()}>
+    <Dialog onClose={props.onClose} title="" width={62} height={dialogHeight()}>
       <box style={{ flexDirection: "column" }}>
         {/* Title with checkmark */}
         <text>
@@ -100,13 +100,24 @@ export function DialogCompletion(props: DialogCompletionProps) {
 
         {/* Raw content display (priority) */}
         <Show when={props.rawContent && props.rawContent.trim().length > 0}>
-           <box 
-             style={{ marginTop: 1, flexDirection: "column", maxHeight: 12, overflow: "hidden" }}
+           <scrollbox 
+             marginTop={1}
+             maxHeight={12}
+             verticalScrollbarOptions={{
+               visible: true,
+               trackOptions: {
+                 backgroundColor: theme().backgroundPanel,
+                 foregroundColor: theme().borderSubtle
+               }
+             }}
+             viewportOptions={{
+               paddingRight: 1
+             }}
            >
              <text>
                 <span style={{ fg: theme().text }}>{props.rawContent}</span>
              </text>
-           </box>
+           </scrollbox>
         </Show>
 
         {/* Fallback: Structured display if no raw content */}

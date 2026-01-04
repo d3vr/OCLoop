@@ -99,7 +99,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - If not listed, append `\n.loop-state.json` to file
     - If `.gitignore` doesn't exist, create it with `.loop-state.json`
 
-- [ ] **Create useLoopStats hook**
+- [x] **Create useLoopStats hook**
   - Create `src/hooks/useLoopStats.ts`
   - State:
     ```ts

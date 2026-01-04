@@ -307,7 +307,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - Show `DialogCompletion` via dialog system
     - On any key press in dialog: Exit process
 
-- [ ] **Wire up error dialog**
+- [x] **Wire up error dialog**
   - Modify `src/App.tsx`
   - When `loop.state().type === "error"`:
     - Show `DialogError` via dialog system

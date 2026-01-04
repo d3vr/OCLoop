@@ -37,6 +37,7 @@ import {
   QuitConfirmation,
   DialogResume,
   DialogCompletion,
+  DialogError,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
@@ -597,6 +598,27 @@ function AppContent(props: AppProps) {
           manualTasks={state.summary.manualTasks}
           blockedTasks={state.summary.blockedTasks}
           onClose={() => process.exit(0)}
+        />
+      ))
+    }
+  })
+
+  // Error effect - show dialog when error occurs
+  createEffect(() => {
+    const state = loop.state()
+    if (state.type === "error") {
+      dialog.show(() => (
+        <DialogError
+          source={state.source}
+          message={state.message}
+          recoverable={state.recoverable}
+          onRetry={() => {
+            dialog.clear()
+            if (loop.canRetry()) {
+              loop.dispatch({ type: "retry" })
+            }
+          }}
+          onQuit={() => process.exit(1)}
         />
       ))
     }

@@ -42,7 +42,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - `border`, `borderActive`, `borderSubtle`
     - `success`, `warning`, `error`, `info`
 
-- [ ] **Create ThemeContext provider**
+- [x] **Create ThemeContext provider**
   - Create `src/context/ThemeContext.tsx`
   - On init, read `~/.local/state/opencode/kv.json` using XDG paths:
     - Extract `theme` (string, default: `"opencode"`)

@@ -31,7 +31,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - `vercel.json`, `vesper.json`, `zenburn.json`
   - Create `src/lib/themes/index.ts` to export all themes as a record
 
-- [ ] **Create theme resolver utility**
+- [x] **Create theme resolver utility**
   - Create `src/lib/theme-resolver.ts`
   - Port the `resolveTheme()` function from OpenCode's `context/theme.tsx`
   - Handle color resolution: hex strings, def references, dark/light variants

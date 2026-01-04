@@ -1,128 +1,282 @@
-# Debug Mode Implementation Plan
+# Plan: External Terminal Launch + Activity Log
 
 ## Overview
 
-Add a `--debug` / `-d` flag to ocloop that enables an interactive sandbox mode. This allows starting the OC server and creating sessions without requiring PLAN.md or .loop-prompt.md files. Useful for:
-- Testing OC server interactions
-- Experimenting with the TUI/UX
-- Debugging session lifecycle without running actual work
+Replace the embedded PTY/ghostty-terminal approach with a user-configured external terminal launcher and activity log.
 
-**Key behaviors in debug mode:**
-- No plan/prompt file validation
-- Auto-creates a session on startup
-- User can create additional sessions with `N` key
-- No iteration loop, no prompts sent - pure manual interaction
-- Session idle = stay ready for new session (no auto-iteration)
+**Why:** Embedding a full TUI (`opencode attach`) inside another TUI (ocloop via ghostty-opentui) introduces significant complexity and reliability issues. Instead, when users want to interact with an OC session, we launch their preferred terminal emulator with the attach command.
+
+**Key Features:**
+- First-time `Ctrl+\` press shows a configuration dialog listing installed terminals
+- User selection is persisted to `~/.config/ocloop/ocloop.json`
+- Subsequent presses launch the configured terminal directly
+- Fallback option to copy the attach command to clipboard
+- Activity log replaces the terminal panel, showing SSE events (session start, file edits, task updates, etc.)
+
+---
 
 ## Backlog
 
-- [x] **Add debug types to type system** (`src/types.ts`)
-  - Add `debug?: boolean` to `CLIArgs` interface (line ~59)
-  - Add `{ type: "debug"; attached: boolean; sessionId: string }` to `LoopState` union (after line 19)
-  - Add `{ type: "server_ready_debug" }` to `LoopAction` union (after line 32)
-  - Add `{ type: "new_session"; sessionId: string }` to `LoopAction` union (after line 32)
+### Phase 1: Config Management
 
-- [x] **Add CLI flag parsing and help text** (`src/index.tsx`)
-  - Add `--debug` / `-d` to help text in `showHelp()` (after line 32, before Examples)
-  - Add case for `-d` / `--debug` in `parseArgs()` switch statement (after line 104)
-  - Modify `validatePrerequisites()` to return early when `args.debug === true` (line 119)
+- [ ] Create `src/lib/config.ts` - Configuration file management
+  - `getConfigDir()` - Returns `$XDG_CONFIG_HOME/ocloop` or `~/.config/ocloop`
+  - `getConfigPath()` - Returns full path to `ocloop.json`
+  - `loadConfig()` - Loads and parses config, returns empty object if not exists
+  - `saveConfig(config)` - Creates directory if needed, writes JSON
+  - `hasTerminalConfig(config)` - Type guard checking if terminal is configured
+  - Types: `OcloopConfig`, `TerminalConfig` (with `type: "known" | "custom"`)
 
-- [x] **Update state machine for debug mode** (`src/hooks/useLoopState.ts`)
-  - Add `server_ready_debug` case to `loopReducer()` - transitions `starting` → `debug` state
-  - Add `new_session` case to `loopReducer()` - sets sessionId in debug state
-  - Update `session_idle` case - handle debug state (clear sessionId, stay in debug)
-  - Update `toggle_attach` case - handle debug state
-  - Update `quit` case - add `debug` to allowed states list
-  - Add `isDebug` derived memo (after line 254)
-  - Update `canQuit` memo to include debug state when detached
-  - Add `isDebug` to return object
+### Phase 2: Terminal Detection & Launching
 
-- [x] **Add debug mode handling to App** (`src/App.tsx`)
-  - Add `createDebugSession()` async function (after `startIteration()`, ~line 404)
-    - Creates session via SDK, dispatches `new_session`, spawns PTY
-    - Handles errors with recoverable error dispatch
-  - Modify server ready effect (~line 446) to dispatch `server_ready_debug` when `props.debug`
-  - Modify `initializeSession()` (~line 468) to call `createDebugSession()` and return early in debug mode
-  - Update `sessionId` memo (~line 179) to also extract from debug state
-  - Update SSE `onSessionIdle` handler (~line 226) to check debug state sessionId
-  - Add debug mode input handling in `inputHandler` (~line 629):
-    - Check `loop.isDebug()` after quit confirmation handling
-    - Handle `N` key → call `createDebugSession()`
-    - Handle `Q` key → show quit confirmation
-    - Forward input to PTY when attached, consume otherwise
-  - Add early returns to `refreshPlan()` and `refreshCurrentTask()` when `props.debug`
+- [ ] Create `src/lib/terminal-launcher.ts` - Terminal detection and launching
+  - `KNOWN_TERMINALS` constant array with name/command/args for each:
+    - alacritty, kitty, wezterm, gnome-terminal, konsole, xfce4-terminal
+    - foot, tilix, terminator, xterm, urxvt, x-terminal-emulator
+  - `getKnownTerminals()` - Returns the full list
+  - `getKnownTerminalByName(name)` - Lookup by name
+  - `detectInstalledTerminals()` - Filters list by checking `which <command>` via Bun.spawn
+  - `getAttachCommand(url, sessionId)` - Returns `"opencode attach <url> --session <id>"`
+  - `launchTerminal(config, attachCmd)` - Spawns detached process, returns `{ success, error? }`
+  - Types: `KnownTerminal`, `LaunchResult`
 
-- [x] **Update Dashboard for debug mode** (`src/components/Dashboard.tsx`)
-  - Add `debug` case to `getStateBadge()` (~line 23): `{ icon: "⚙", text: "DEBUG", colorKey: "info" }`
-  - Update `iteration` memo (~line 78) - return 0 for debug state
-  - Add `debug` case to `keybindHints` memo (~line 115):
-    - Attached: `[Ctrl+\ detach]`
-    - Detached with session: `[Ctrl+\ attach] [N new session] [Q quit]`
-    - Detached no session: `[N new session] [Q quit]`
-  - Update plan progress `<Show>` (~line 203) - hide when `props.state.type === "debug"`
-  - Update `truncatedTask` memo (~line 159) - show session ID (truncated) in debug mode instead of task
+- [ ] Create `src/lib/clipboard.ts` - Clipboard operations
+  - `detectClipboardTool()` - Checks `$WAYLAND_DISPLAY` for wl-copy, falls back to xclip/xsel
+  - `copyToClipboard(text)` - Spawns clipboard tool, pipes text to stdin
+  - Returns `{ success: boolean, error?: string }`
 
-- [MANUAL] **Test debug mode end-to-end**
-  - Run `bun run build` to verify no type errors
-  - Run `./dist/ocloop --help` and verify debug flag appears
-  - Run `./dist/ocloop --debug` in a test directory (no PLAN.md needed)
-  - Verify: server starts, session auto-created, PTY attached
-  - Verify: `Ctrl+\` detaches, dashboard shows DEBUG state
-  - Verify: `N` creates new session
-  - Verify: `Q` shows quit confirmation, `Y` exits cleanly
+### Phase 3: Activity Log
+
+- [ ] Create `src/hooks/useActivityLog.ts` - Activity log state management
+  - `ActivityEvent` type: `{ id, timestamp, type, message }`
+  - Event types: `"session_start" | "session_idle" | "task" | "file_edit" | "error"`
+  - `useActivityLog()` hook returning:
+    - `events: Accessor<ActivityEvent[]>`
+    - `addEvent(type, message)` - Prepends event, caps at 100 entries
+    - `clear()` - Empties the log
+  - Auto-generates unique IDs via counter
+
+- [ ] Create `src/components/ActivityLog.tsx` - Activity log UI component
+  - Props: `{ events: ActivityEvent[] }`
+  - Bordered box that fills remaining space (like old TerminalPanel)
+  - Title row: "Activity"
+  - Scrollable event list, most recent at bottom
+  - Each row: `HH:MM:SS  <icon> <message>`
+  - Color coding by event type using theme colors:
+    - session_start/idle: `theme.textMuted`
+    - task: `theme.primary` 
+    - file_edit: `theme.text` with `"✎"` prefix
+    - error: `theme.error` with `"⚠"` prefix
+
+### Phase 4: Terminal Config Dialog
+
+- [ ] Create `src/components/DialogTerminalConfig.tsx` - First-time terminal configuration
+  - Props: `{ availableTerminals, attachCommand, onSelect, onCopy, onCancel }`
+  - Two view states: `"list"` and `"custom"`
+  - List view:
+    - Title: "Configure Terminal"
+    - Scrollable list of available terminals (filtered to installed only)
+    - Highlighted current selection
+    - "Custom..." option at bottom separated by divider
+    - Footer keybinds: `Enter` select | `C` copy command | `Esc` cancel
+  - Custom view:
+    - Title: "Custom Terminal"
+    - Input field: Command (e.g., `my-terminal`)
+    - Input field: Args pattern (e.g., `-e {cmd}`)
+    - Help text explaining `{cmd}` placeholder
+    - Footer keybinds: `Enter` save | `Esc` back
+  - Keyboard navigation: `↑/↓` or `j/k` for list, `Tab` between inputs
+
+- [ ] Create `src/components/DialogTerminalError.tsx` - Terminal launch failure dialog
+  - Props: `{ terminalName, errorMessage, attachCommand, onCopy, onClose }`
+  - Title: "Terminal Launch Failed"
+  - Shows error message
+  - Suggests editing `~/.config/ocloop/ocloop.json`
+  - Shows attach command for manual copy
+  - Footer keybinds: `C` copy command | `Esc` close
+
+### Phase 5: SSE Hook Updates
+
+- [ ] Update `src/hooks/useSSE.ts` - Add new event handlers
+  - Add to `SSEEventHandlers` interface:
+    - `onSessionCreated?: (sessionId: string) => void`
+    - `onSessionError?: (sessionId: string | undefined, error: string) => void`
+  - Add case handlers in `processEvent()`:
+    - `"session.created"` - Extract `event.properties.info.id`, call handler
+    - `"session.error"` - Extract sessionID and error message, call handler
+
+### Phase 6: State Machine Cleanup
+
+- [ ] Update `src/hooks/useLoopState.ts` - Remove attach-related state
+  - Remove `isAttached` signal
+  - Remove `toggle_attach` action handling
+  - Remove any attach/detach state transitions
+  - Keep the `"debug"` state but remove its `isAttached` tracking
+  - Update `useLoopStateReturn` type to remove `isAttached`
+
+### Phase 7: Component Index Updates
+
+- [ ] Update `src/components/index.ts` - Export changes
+  - Remove: `export { TerminalPanel } from "./TerminalPanel"`
+  - Add: `export { ActivityLog } from "./ActivityLog"`
+  - Add: `export { DialogTerminalConfig } from "./DialogTerminalConfig"`
+  - Add: `export { DialogTerminalError } from "./DialogTerminalError"`
+
+### Phase 8: Dashboard Updates
+
+- [ ] Update `src/components/Dashboard.tsx` - Simplify keybind hints
+  - Remove `isAttached` prop usage (will always be false)
+  - Update keybind hints:
+    - Change `"attach"` to `"terminal"` for `Ctrl+\`
+    - Remove the attached-state hints branch
+  - Simplify `DashboardProps` - can remove `isAttached` prop
+
+### Phase 9: Entry Point Cleanup
+
+- [ ] Update `src/index.tsx` - Remove ghostty-terminal registration
+  - Remove import: `import { GhosttyTerminalRenderable } from "ghostty-opentui/terminal-buffer"`
+  - Remove from `JSX.IntrinsicElements` interface: `"ghostty-terminal": typeof GhosttyTerminalRenderable`
+  - Remove from `extend()` call: `"ghostty-terminal": GhosttyTerminalRenderable`
+
+### Phase 10: Main App Refactor
+
+- [ ] Update `src/App.tsx` - Complete integration
+  - **Imports:**
+    - Remove: `usePTY`, `GhosttyTerminalRenderable` imports
+    - Remove: `TerminalPanel` from components import
+    - Add: `useActivityLog` hook
+    - Add: `loadConfig`, `saveConfig`, `hasTerminalConfig` from config
+    - Add: `detectInstalledTerminals`, `getAttachCommand`, `launchTerminal`, `KnownTerminal` from terminal-launcher
+    - Add: `copyToClipboard` from clipboard
+    - Add: `ActivityLog`, `DialogTerminalConfig`, `DialogTerminalError` from components
+  - **State additions:**
+    - `ocloopConfig` signal for loaded config
+    - `showingTerminalConfig` signal for dialog visibility
+    - `terminalError` signal for error dialog state
+    - `availableTerminals` signal for detected terminals list
+    - `activityLog` from `useActivityLog()` hook
+  - **Remove:**
+    - `terminalRef` object
+    - `usePTY` hook call and all related code
+    - PTY error effect
+    - Terminal dimension calculations (keep for potential future use or remove)
+    - `TerminalPanel` from JSX
+  - **On mount:**
+    - Load config via `loadConfig()`
+    - Detect installed terminals via `detectInstalledTerminals()`
+  - **Wire SSE to activity log:**
+    - `onSessionCreated` -> `addEvent("session_start", "Session started")`
+    - `onSessionIdle` -> existing logic + `addEvent("session_idle", "Session idle")`
+    - `onTodoUpdated` -> existing logic + `addEvent("task", content)` for in_progress
+    - `onFileEdited` -> existing logic + `addEvent("file_edit", file)`
+    - `onSessionError` -> `addEvent("error", errorMessage)`
+  - **Update Ctrl+\ handler:**
+    - Check for active sessionId, early return if none
+    - Check `hasTerminalConfig(config)`:
+      - If no config: `setShowingTerminalConfig(true)`
+      - If configured: call `launchTerminal()`, handle errors
+  - **Update layout JSX:**
+    - Replace `TerminalPanel` with `ActivityLog`
+    - Pass `activityLog.events()` to ActivityLog
+    - Add `DialogTerminalConfig` with Show wrapper
+    - Add `DialogTerminalError` with Show wrapper
+    - Update `Dashboard` props: `isAttached={false}` (always)
+  - **Dialog handlers:**
+    - `onSelect`: save config, launch terminal, handle errors
+    - `onCopy`: copy to clipboard, close dialog
+
+### Phase 11: File Cleanup
+
+- [ ] Delete removed files
+  - Delete `src/hooks/usePTY.ts`
+  - Delete `src/components/TerminalPanel.tsx`
+
+### Phase 12: Dependencies
+
+- [ ] Update `package.json` - Remove unused dependencies
+  - Remove from dependencies: `"bun-pty": "latest"`
+  - Remove from dependencies: `"ghostty-opentui": "latest"`
+  - Run `bun install` to update lockfile
+
+### Phase 13: Verification
+
+- [ ] [MANUAL] Test the complete flow
+  - Run `bun run dev -- -d` (debug mode)
+  - Press `Ctrl+\` - should show terminal config dialog
+  - Verify only installed terminals are listed
+  - Select a terminal - should save config and launch terminal
+  - Press `Ctrl+\` again - should launch terminal directly (no dialog)
+  - Test "Copy command" option
+  - Test custom terminal configuration
+  - Verify activity log shows events during session
+  - Verify config persists in `~/.config/ocloop/ocloop.json`
+
+---
 
 ## Testing Notes
 
+### Manual Testing Steps
+
+1. **Config persistence:**
+   ```bash
+   # Start fresh
+   rm -rf ~/.config/ocloop
+   bun run dev -- -d
+   # Press Ctrl+\, select terminal, verify ~/.config/ocloop/ocloop.json created
+   ```
+
+2. **Terminal detection:**
+   ```bash
+   # Verify only installed terminals appear in dialog
+   which alacritty kitty wezterm gnome-terminal  # Compare with dialog list
+   ```
+
+3. **Clipboard:**
+   ```bash
+   # Test clipboard works
+   bun run dev -- -d
+   # Press Ctrl+\, press C, paste in another terminal
+   ```
+
+4. **Activity log:**
+   ```bash
+   bun run dev  # Normal mode with PLAN.md and loop-prompt.md
+   # Press S to start
+   # Verify events appear: "Session started", file edits, task updates
+   ```
+
+5. **Error handling:**
+   ```bash
+   # Edit ~/.config/ocloop/ocloop.json to reference non-existent terminal
+   # Press Ctrl+\, verify error dialog appears
+   ```
+
 ### Build Verification
+
 ```bash
 bun run build
+bun run test  # If tests exist
 ```
-Should complete without TypeScript errors.
 
-### Manual Testing Checklist
-
-1. **Help text**
-   ```bash
-   ./dist/ocloop --help
-   ```
-   Verify `-d, --debug` option appears in output.
-
-2. **Debug mode startup (no files)**
-   ```bash
-   cd /tmp && mkdir ocloop-test && cd ocloop-test
-   /path/to/ocloop --debug
-   ```
-   Should start without "Plan file not found" error.
-
-3. **Session auto-creation**
-   - On startup, should see DEBUG badge in dashboard
-   - Terminal panel should show opencode TUI attached to a session
-
-4. **Keyboard interactions**
-   - `Ctrl+\` - Toggle attach/detach (dashboard border should change)
-   - When detached: `N` should create new session
-   - When detached: `Q` should show quit confirmation
-   - `Y` on quit confirmation should exit cleanly
-
-5. **Session lifecycle**
-   - In attached mode, type `/exit` to end session
-   - Should return to debug state with empty session
-   - Dashboard should update keybinds (no "attach" when no session)
-   - `N` should create fresh session
-
-6. **With options**
-   ```bash
-   ./dist/ocloop -d -p 4099
-   ./dist/ocloop --debug -m claude-sonnet-4
-   ```
-   Port and model options should still work in debug mode.
+---
 
 ## File Change Summary
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/types.ts` | Modify | Add `debug` to CLIArgs, LoopState, LoopAction |
-| `src/index.tsx` | Modify | Add `--debug` flag parsing, skip validation |
-| `src/hooks/useLoopState.ts` | Modify | Handle debug state transitions, add `isDebug` |
-| `src/App.tsx` | Modify | Debug session creation, input handling, skip plan logic |
-| `src/components/Dashboard.tsx` | Modify | Debug badge, keybinds, hide plan progress |
+| Action | File | Description |
+|--------|------|-------------|
+| Create | `src/lib/config.ts` | Config file load/save utilities |
+| Create | `src/lib/terminal-launcher.ts` | Terminal detection and launching |
+| Create | `src/lib/clipboard.ts` | Clipboard copy utility |
+| Create | `src/hooks/useActivityLog.ts` | Activity log state hook |
+| Create | `src/components/ActivityLog.tsx` | Activity log UI component |
+| Create | `src/components/DialogTerminalConfig.tsx` | Terminal config dialog |
+| Create | `src/components/DialogTerminalError.tsx` | Terminal error dialog |
+| Modify | `src/hooks/useSSE.ts` | Add session.created and session.error handlers |
+| Modify | `src/hooks/useLoopState.ts` | Remove isAttached state |
+| Modify | `src/components/index.ts` | Update exports |
+| Modify | `src/components/Dashboard.tsx` | Simplify keybind hints |
+| Modify | `src/index.tsx` | Remove ghostty-terminal registration |
+| Modify | `src/App.tsx` | Full integration of new features |
+| Modify | `package.json` | Remove bun-pty, ghostty-opentui deps |
+| Delete | `src/hooks/usePTY.ts` | No longer needed |
+| Delete | `src/components/TerminalPanel.tsx` | Replaced by ActivityLog |

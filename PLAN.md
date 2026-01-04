@@ -16,18 +16,18 @@ Add a `--debug` / `-d` flag to ocloop that enables an interactive sandbox mode. 
 
 ## Backlog
 
-- [ ] **Add debug types to type system** (`src/types.ts`)
+- [x] **Add debug types to type system** (`src/types.ts`)
   - Add `debug?: boolean` to `CLIArgs` interface (line ~59)
   - Add `{ type: "debug"; attached: boolean; sessionId: string }` to `LoopState` union (after line 19)
   - Add `{ type: "server_ready_debug" }` to `LoopAction` union (after line 32)
   - Add `{ type: "new_session"; sessionId: string }` to `LoopAction` union (after line 32)
 
-- [ ] **Add CLI flag parsing and help text** (`src/index.tsx`)
+- [x] **Add CLI flag parsing and help text** (`src/index.tsx`)
   - Add `--debug` / `-d` to help text in `showHelp()` (after line 32, before Examples)
   - Add case for `-d` / `--debug` in `parseArgs()` switch statement (after line 104)
   - Modify `validatePrerequisites()` to return early when `args.debug === true` (line 119)
 
-- [ ] **Update state machine for debug mode** (`src/hooks/useLoopState.ts`)
+- [x] **Update state machine for debug mode** (`src/hooks/useLoopState.ts`)
   - Add `server_ready_debug` case to `loopReducer()` - transitions `starting` → `debug` state
   - Add `new_session` case to `loopReducer()` - sets sessionId in debug state
   - Update `session_idle` case - handle debug state (clear sessionId, stay in debug)
@@ -37,7 +37,7 @@ Add a `--debug` / `-d` flag to ocloop that enables an interactive sandbox mode. 
   - Update `canQuit` memo to include debug state when detached
   - Add `isDebug` to return object
 
-- [ ] **Add debug mode handling to App** (`src/App.tsx`)
+- [x] **Add debug mode handling to App** (`src/App.tsx`)
   - Add `createDebugSession()` async function (after `startIteration()`, ~line 404)
     - Creates session via SDK, dispatches `new_session`, spawns PTY
     - Handles errors with recoverable error dispatch
@@ -52,7 +52,7 @@ Add a `--debug` / `-d` flag to ocloop that enables an interactive sandbox mode. 
     - Forward input to PTY when attached, consume otherwise
   - Add early returns to `refreshPlan()` and `refreshCurrentTask()` when `props.debug`
 
-- [ ] **Update Dashboard for debug mode** (`src/components/Dashboard.tsx`)
+- [x] **Update Dashboard for debug mode** (`src/components/Dashboard.tsx`)
   - Add `debug` case to `getStateBadge()` (~line 23): `{ icon: "⚙", text: "DEBUG", colorKey: "info" }`
   - Update `iteration` memo (~line 78) - return 0 for debug state
   - Add `debug` case to `keybindHints` memo (~line 115):

@@ -11,6 +11,8 @@ export type SSEStatus = "disconnected" | "connecting" | "connected" | "error"
  * SSE event handlers for OCLoop-relevant events
  */
 export interface SSEEventHandlers {
+  /** Called when a session is created */
+  onSessionCreated?: (sessionId: string) => void
   /** Called when a session becomes idle */
   onSessionIdle?: (sessionId: string) => void
   /** Called when todos are updated */
@@ -19,6 +21,8 @@ export interface SSEEventHandlers {
   onFileEdited?: (file: string) => void
   /** Called when session status changes */
   onSessionStatus?: (sessionId: string, status: SessionStatus) => void
+  /** Called when a session error occurs */
+  onSessionError?: (sessionId: string | undefined, error: string) => void
   /** Called for any event (useful for debugging) */
   onAnyEvent?: (event: Event) => void
 }
@@ -116,6 +120,20 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
 
     // Handle specific event types
     switch (event.type) {
+      case "session.created": {
+        // Extract session ID from event.properties.info.id
+        const eventSessionId = (event.properties as { info?: { id?: string } })
+          .info?.id
+        if (eventSessionId) {
+          // Filter by session if a filter is set
+          if (filterSessionId && eventSessionId !== filterSessionId) {
+            return
+          }
+          handlers.onSessionCreated?.(eventSessionId)
+        }
+        break
+      }
+
       case "session.idle": {
         const eventSessionId = event.properties.sessionID
         // Filter by session if a filter is set
@@ -123,6 +141,23 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
           return
         }
         handlers.onSessionIdle?.(eventSessionId)
+        break
+      }
+
+      case "session.error": {
+        const eventSessionId = (event.properties as { sessionID?: string })
+          .sessionID
+        const errorMessage =
+          (event.properties as { error?: string }).error ?? "Unknown error"
+        // Filter by session if a filter is set
+        if (
+          filterSessionId &&
+          eventSessionId &&
+          eventSessionId !== filterSessionId
+        ) {
+          return
+        }
+        handlers.onSessionError?.(eventSessionId, errorMessage)
         break
       }
 

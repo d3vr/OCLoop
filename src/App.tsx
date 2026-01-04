@@ -16,6 +16,7 @@ import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 import { useServer } from "./hooks/useServer"
 import { useSSE } from "./hooks/useSSE"
 import { useLoopState } from "./hooks/useLoopState"
+import { useLoopStats } from "./hooks/useLoopStats"
 import { usePTY } from "./hooks/usePTY"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
@@ -28,7 +29,7 @@ import {
   QuitConfirmation,
   ErrorDisplay,
 } from "./components"
-import type { CLIArgs, PlanProgress } from "./types"
+import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
 // UI layout constants
 // Status bar takes 3 lines: status line + keybindings + current task (optional)
@@ -90,6 +91,55 @@ function AppContent(props: AppProps) {
 
   // Loop state machine
   const loop = useLoopState()
+
+  // Loop timing statistics
+  const stats = useLoopStats()
+
+  // Track previous state for detecting transitions
+  let prevState: LoopState | null = null
+
+  // Wire stats hook to loop state transitions
+  createEffect(() => {
+    const state = loop.state()
+    const prev = prevState
+    prevState = state
+
+    // Skip initial render (no previous state)
+    if (prev === null) {
+      return
+    }
+
+    // Detect iteration_started: transitioning from running with no sessionId to running with sessionId
+    // OR from paused to running with a new session
+    if (
+      state.type === "running" &&
+      state.sessionId &&
+      ((prev.type === "running" && !prev.sessionId) ||
+        prev.type === "paused" ||
+        prev.type === "ready")
+    ) {
+      stats.startIteration()
+    }
+
+    // Detect pause: transitioning from running to pausing
+    if (state.type === "pausing" && prev.type === "running") {
+      stats.pause()
+    }
+
+    // Detect resume: transitioning from paused to running
+    if (state.type === "running" && prev.type === "paused") {
+      stats.resume()
+    }
+
+    // Detect session_idle: transitioning from running/pausing with sessionId to running without
+    // or from pausing to paused
+    if (
+      (state.type === "running" && !state.sessionId && prev.type === "running" && prev.sessionId) ||
+      (state.type === "paused" && prev.type === "pausing")
+    ) {
+      stats.endIteration()
+    }
+  })
 
   // Plan progress tracking
   const [planProgress, setPlanProgress] = createSignal<PlanProgress | null>(

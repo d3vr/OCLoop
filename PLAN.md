@@ -249,7 +249,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     ```
   - Move current App logic into `AppContent` component
 
-- [ ] **Integrate useLoopStats into App**
+- [x] **Integrate useLoopStats into App**
   - Modify `src/App.tsx`
   - Initialize `useLoopStats()` hook
   - Wire up to loop state machine:

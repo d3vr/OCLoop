@@ -1,13 +1,95 @@
 import type { PlanProgress, CompletionSummary } from "../types"
 
+type TaskType = "completed" | "pending" | "manual" | "blocked" | "not-a-task"
+
+interface ParsedTask {
+  type: TaskType
+  description: string
+  blockedReason?: string
+}
+
+/**
+ * Parses a single line from PLAN.md to determine its task type and content.
+ * 
+ * Handles various formats:
+ * - - [x] or - [X] -> completed
+ * - - [ ] -> pending
+ * - - [MANUAL] or - [ ] [MANUAL] -> manual
+ * - - [BLOCKED] or - [ ] [BLOCKED] -> blocked
+ */
+export function parseTaskLine(line: string): ParsedTask {
+  const trimmed = line.trim()
+  
+  // Must start with "- [" to be a task
+  if (!trimmed.startsWith("- [")) {
+    return { type: "not-a-task", description: "" }
+  }
+  
+  // Find closing bracket for the checkbox/tag
+  // We start searching from index 3 to skip the initial "- ["
+  const closeBracket = trimmed.indexOf("]", 3)
+  if (closeBracket === -1) {
+    return { type: "not-a-task", description: "" }
+  }
+  
+  const checkboxContent = trimmed.slice(3, closeBracket).trim()
+  let afterCheckbox = trimmed.slice(closeBracket + 1).trim()
+  
+  // Check for completed
+  if (/^[xX]$/.test(checkboxContent)) {
+    return { type: "completed", description: afterCheckbox }
+  }
+  
+  // Check for MANUAL - either in checkbox or as tag after
+  if (/^MANUAL$/i.test(checkboxContent)) {
+    return { type: "manual", description: afterCheckbox }
+  }
+  
+  // Check for [MANUAL] tag after empty checkbox
+  if (checkboxContent === "" && afterCheckbox.toUpperCase().startsWith("[MANUAL]")) {
+    const description = afterCheckbox.replace(/^\[MANUAL\]\s*/i, "")
+    return { type: "manual", description }
+  }
+  
+  // Check for BLOCKED - either in checkbox or as tag after
+  if (/^BLOCKED/i.test(checkboxContent)) {
+    const reason = checkboxContent.replace(/^BLOCKED[:\s]*/i, "")
+    return { 
+      type: "blocked", 
+      description: afterCheckbox,
+      blockedReason: reason 
+    }
+  }
+  
+  // Check for [BLOCKED] tag after empty checkbox
+  if (checkboxContent === "" && /^\[BLOCKED/i.test(afterCheckbox)) {
+    const match = afterCheckbox.match(/^\[BLOCKED[:\s]*([^\]]*)\]\s*(.*)$/i)
+    if (match) {
+      return { 
+        type: "blocked", 
+        description: match[2] || "", 
+        blockedReason: match[1]?.trim() || "" 
+      }
+    }
+  }
+  
+  // Empty checkbox = pending
+  if (checkboxContent === "") {
+    return { type: "pending", description: afterCheckbox }
+  }
+  
+  // Unknown checkbox content - treat as not a task
+  return { type: "not-a-task", description: "" }
+}
+
 /**
  * Parses a PLAN.md file content and extracts progress information.
  *
  * Recognizes:
  * - `- [x]` or `- [X]` - completed tasks
  * - `- [ ]` - pending tasks
- * - `- [MANUAL]` - manual tasks (excluded from automation)
- * - `- [BLOCKED: reason]` - blocked tasks
+ * - `- [MANUAL]` or `- [ ] [MANUAL]` - manual tasks (excluded from automation)
+ * - `- [BLOCKED]` or `- [ ] [BLOCKED]` - blocked tasks
  *
  * @param content - The content of the PLAN.md file
  * @returns PlanProgress object with task counts and percentages
@@ -20,19 +102,25 @@ export function parsePlan(content: string): PlanProgress {
   let blocked = 0
 
   for (const line of lines) {
-    const trimmed = line.trim()
+    const task = parseTaskLine(line)
+    
+    if (task.type === "not-a-task") {
+      continue
+    }
 
-    if (trimmed.startsWith("- [x]") || trimmed.startsWith("- [X]")) {
-      total++
-      completed++
-    } else if (trimmed.startsWith("- [ ]")) {
-      total++
-    } else if (trimmed.startsWith("- [MANUAL]")) {
-      total++
-      manual++
-    } else if (/^- \[BLOCKED/i.test(trimmed)) {
-      total++
-      blocked++
+    total++
+    
+    switch (task.type) {
+      case "completed":
+        completed++
+        break
+      case "manual":
+        manual++
+        break
+      case "blocked":
+        blocked++
+        break
+      // pending counts towards total but not specific buckets here
     }
   }
 
@@ -64,26 +152,15 @@ export function parseRemainingTasks(content: string): CompletionSummary {
   const blockedTasks: string[] = []
 
   for (const line of lines) {
-    const trimmed = line.trim()
+    const task = parseTaskLine(line)
 
-    if (trimmed.startsWith("- [MANUAL]")) {
-      // Extract the task description after [MANUAL]
-      const description = trimmed.replace(/^- \[MANUAL\]\s*/, "").trim()
-      if (description) {
-        manualTasks.push(description)
-      }
-    } else if (/^- \[BLOCKED/i.test(trimmed)) {
-      // Extract the task description (includes the reason)
-      // Format: "- [BLOCKED: reason] description" -> keep both reason and description
-      const match = trimmed.match(/^- \[BLOCKED[:\s]*([^\]]*)\]\s*(.*)$/i)
-      if (match) {
-        const reason = match[1]?.trim()
-        const description = match[2]?.trim()
-        const fullDescription = reason
-          ? `[BLOCKED: ${reason}] ${description}`
-          : description || "Unknown task"
-        blockedTasks.push(fullDescription)
-      }
+    if (task.type === "manual" && task.description) {
+      manualTasks.push(task.description)
+    } else if (task.type === "blocked" && task.description) {
+      const fullDescription = task.blockedReason
+        ? `[BLOCKED: ${task.blockedReason}] ${task.description}`
+        : task.description
+      blockedTasks.push(fullDescription)
     }
   }
 
@@ -140,7 +217,8 @@ export async function parseCompletionFile(completePath: string): Promise<Complet
 /**
  * Extracts the current task text from plan content.
  *
- * Finds the first unchecked task (- [ ]) and returns its description.
+ * Finds the first unchecked task (- [ ]) that isn't MANUAL or BLOCKED
+ * and returns its description.
  *
  * @param content - The content of the PLAN.md file
  * @returns The task description or null if no unchecked tasks found
@@ -149,12 +227,10 @@ export function getCurrentTaskFromContent(content: string): string | null {
   const lines = content.split("\n")
 
   for (const line of lines) {
-    const trimmed = line.trim()
-
-    if (trimmed.startsWith("- [ ]")) {
-      // Extract the task description after the checkbox
-      const description = trimmed.replace(/^- \[ \]\s*/, "").trim()
-      return description || null
+    const task = parseTaskLine(line)
+    
+    if (task.type === "pending" && task.description) {
+      return task.description
     }
   }
 

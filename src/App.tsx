@@ -863,6 +863,14 @@ function AppContent(props: AppProps) {
         return true
       }
 
+      // Complete state - Q to exit
+      if (loop.state().type === "complete") {
+        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
+          process.exit(0)
+        }
+        return true
+      }
+
       // Detached - handle our keybindings
       if (sequence === KEYS.SPACE) {
         if (loop.canPause()) {
@@ -879,14 +887,6 @@ function AppContent(props: AppProps) {
       if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
         if (loop.canQuit()) {
           loop.showQuitConfirmation()
-        }
-        return true
-      }
-
-      // Complete state - Q to exit
-      if (loop.state().type === "complete") {
-        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-          process.exit(0)
         }
         return true
       }

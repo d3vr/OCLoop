@@ -19,7 +19,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 1: Config Management
 
-- [ ] Create `src/lib/config.ts` - Configuration file management
+- [x] Create `src/lib/config.ts` - Configuration file management
   - `getConfigDir()` - Returns `$XDG_CONFIG_HOME/ocloop` or `~/.config/ocloop`
   - `getConfigPath()` - Returns full path to `ocloop.json`
   - `loadConfig()` - Loads and parses config, returns empty object if not exists
@@ -29,7 +29,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 2: Terminal Detection & Launching
 
-- [ ] Create `src/lib/terminal-launcher.ts` - Terminal detection and launching
+- [x] Create `src/lib/terminal-launcher.ts` - Terminal detection and launching
   - `KNOWN_TERMINALS` constant array with name/command/args for each:
     - alacritty, kitty, wezterm, gnome-terminal, konsole, xfce4-terminal
     - foot, tilix, terminator, xterm, urxvt, x-terminal-emulator

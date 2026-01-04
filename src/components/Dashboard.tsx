@@ -60,12 +60,11 @@ function getStateBadge(state: LoopState): { icon: string; text: string; colorKey
  * @example
  * ```tsx
  * <Dashboard
- *   isActive={!isAttached}
+ *   isActive={true}
  *   state={loop.state()}
  *   progress={planProgress()}
  *   stats={stats}
  *   currentTask={currentTask()}
- *   isAttached={loop.isAttached()}
  * />
  * ```
  */

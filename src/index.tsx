@@ -5,15 +5,6 @@ import { App } from "./App"
 import { DEFAULTS } from "./lib/constants"
 import type { CLIArgs } from "./types"
 
-// Register ghostty-terminal component
-// declare module "@opentui/solid" {
-//   interface OpenTUIComponents {
-//     "ghostty-terminal": typeof GhosttyTerminalRenderable
-//   }
-// }
-
-// extend({ "ghostty-terminal": GhosttyTerminalRenderable })
-
 /**
  * Display help message and exit
  */

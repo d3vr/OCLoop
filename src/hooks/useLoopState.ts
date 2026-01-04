@@ -209,7 +209,7 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
  *
  * // Handle events
  * loop.dispatch({ type: "server_ready" })
- * loop.dispatch({ type: "toggle_attach" })
+ * loop.dispatch({ type: "toggle_pause" })
  * ```
  */
 export function useLoopState(): UseLoopStateReturn {

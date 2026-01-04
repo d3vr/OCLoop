@@ -44,7 +44,6 @@ function formatTime(date: Date): string {
  * ActivityLog component
  *
  * Displays a scrollable list of activity events in a bordered panel.
- * Replaces the old TerminalPanel component with a simpler activity log.
  *
  * Each row shows: `HH:MM:SS  <icon> <message>`
  *

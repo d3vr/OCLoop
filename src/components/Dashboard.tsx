@@ -173,6 +173,7 @@ export function Dashboard(props: DashboardProps) {
     <box
       height={6}
       border={true}
+      zIndex={props.isActive ? 2 : 1}
       borderStyle="single"
       borderColor={borderColor()}
       style={{

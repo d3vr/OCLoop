@@ -63,6 +63,8 @@ export function TerminalPanel(props: TerminalPanelProps) {
         flexGrow: 1,
         opacity: props.isActive ? 1 : 0.7,
         overflow: "hidden",
+        marginTop: -1,
+        zIndex: props.isActive ? 2 : 1,
       }}
     >
       <ghostty-terminal

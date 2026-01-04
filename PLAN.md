@@ -313,7 +313,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - Show `DialogError` via dialog system
     - Handle retry/quit actions
 
-- [ ] **Clean up deleted components**
+- [x] **Clean up deleted components**
   - Delete `src/components/StatusBar.tsx`
   - Delete `src/components/ErrorDisplay.tsx`
   - Update `src/components/index.ts` exports:

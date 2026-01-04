@@ -4,10 +4,12 @@
  * This module exports all UI components used by the OCLoop harness.
  */
 
+export { ActivityLog, type ActivityLogProps } from "./ActivityLog"
 export { Dashboard, type DashboardProps } from "./Dashboard"
 export { DialogCompletion, type DialogCompletionProps } from "./DialogCompletion"
 export { DialogError, type DialogErrorProps } from "./DialogError"
 export { DialogResume, type DialogResumeProps } from "./DialogResume"
+export { DialogTerminalConfig, type DialogTerminalConfigProps } from "./DialogTerminalConfig"
+export { DialogTerminalError, type DialogTerminalErrorProps } from "./DialogTerminalError"
 export { ProgressIndicator, type ProgressIndicatorProps } from "./ProgressIndicator"
-export { TerminalPanel, type TerminalPanelProps } from "./TerminalPanel"
 export { QuitConfirmation, type QuitConfirmationProps } from "./QuitConfirmation"

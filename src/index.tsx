@@ -1,19 +1,18 @@
 #!/usr/bin/env bun
 
-import { render, extend } from "@opentui/solid"
-import { GhosttyTerminalRenderable } from "ghostty-opentui/terminal-buffer"
+import { render } from "@opentui/solid"
 import { App } from "./App"
 import { DEFAULTS } from "./lib/constants"
 import type { CLIArgs } from "./types"
 
 // Register ghostty-terminal component
-declare module "@opentui/solid" {
-  interface OpenTUIComponents {
-    "ghostty-terminal": typeof GhosttyTerminalRenderable
-  }
-}
+// declare module "@opentui/solid" {
+//   interface OpenTUIComponents {
+//     "ghostty-terminal": typeof GhosttyTerminalRenderable
+//   }
+// }
 
-extend({ "ghostty-terminal": GhosttyTerminalRenderable })
+// extend({ "ghostty-terminal": GhosttyTerminalRenderable })
 
 /**
  * Display help message and exit

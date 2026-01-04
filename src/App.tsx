@@ -4,20 +4,18 @@ import {
   createMemo,
   onMount,
   onCleanup,
+  Show,
 } from "solid-js"
 import {
   useRenderer,
-  useTerminalDimensions,
-  onResize,
 } from "@opentui/solid"
-import type { GhosttyTerminalRenderable } from "ghostty-opentui/terminal-buffer"
 import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 
 import { useServer } from "./hooks/useServer"
 import { useSSE } from "./hooks/useSSE"
 import { useLoopState } from "./hooks/useLoopState"
 import { useLoopStats } from "./hooks/useLoopStats"
-import { usePTY } from "./hooks/usePTY"
+import { useActivityLog } from "./hooks/useActivityLog"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile, getCurrentTask } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
 import { shutdownManager } from "./lib/shutdown"
@@ -29,6 +27,14 @@ import {
   createLoopState,
   type LoopStateFile,
 } from "./lib/loop-state"
+import { loadConfig, saveConfig, hasTerminalConfig, type OcloopConfig } from "./lib/config"
+import { 
+  detectInstalledTerminals, 
+  getAttachCommand, 
+  launchTerminal, 
+  type KnownTerminal 
+} from "./lib/terminal-launcher"
+import { copyToClipboard } from "./lib/clipboard"
 import { ThemeProvider } from "./context/ThemeContext"
 import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
 import {
@@ -37,14 +43,11 @@ import {
   DialogResume,
   DialogCompletion,
   DialogError,
+  ActivityLog,
+  DialogTerminalConfig,
+  DialogTerminalError,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
-
-// UI layout constants
-// Dashboard fixed at 6 rows (4 content rows + 2 for border)
-const DASHBOARD_HEIGHT = 6
-// Terminal panel has 2 lines for borders
-const TERMINAL_BORDER_HEIGHT = 2
 
 /**
  * Props for the App component
@@ -75,23 +78,17 @@ export function App(props: AppProps) {
  * - Server management (useServer)
  * - SSE event subscription (useSSE)
  * - State machine (useLoopState)
- * - PTY management (usePTY)
+ * - Activity Log (useActivityLog)
  *
  * Manages keybindings:
- * - Ctrl+\ to toggle attach/detach
- * - Space to pause/resume (when detached)
- * - Q to quit (when detached)
+ * - Ctrl+\ to launch external terminal
+ * - Space to pause/resume
+ * - Q to quit
  * - Y/N for quit confirmation
  */
 function AppContent(props: AppProps) {
   const renderer = useRenderer()
-  const dimensions = useTerminalDimensions()
   const dialog = useDialog()
-
-  // Terminal ref for ghostty-terminal
-  const terminalRef: { current: GhosttyTerminalRenderable | null } = {
-    current: null,
-  }
 
   // Server management
   const server = useServer({
@@ -104,6 +101,15 @@ function AppContent(props: AppProps) {
 
   // Loop timing statistics
   const stats = useLoopStats()
+
+  // Activity Log
+  const activityLog = useActivityLog()
+
+  // Configuration & Terminal State
+  const [ocloopConfig, setOcloopConfig] = createSignal<OcloopConfig>({})
+  const [showingTerminalConfig, setShowingTerminalConfig] = createSignal(false)
+  const [terminalError, setTerminalError] = createSignal<{ name: string; error: string } | null>(null)
+  const [availableTerminals, setAvailableTerminals] = createSignal<KnownTerminal[]>([])
 
   // Persisted loop state (loaded on startup)
   const [persistedState, setPersistedState] = createSignal<LoopStateFile | null>(null)
@@ -174,7 +180,7 @@ function AppContent(props: AppProps) {
     undefined,
   )
 
-  // Current session ID (for SSE filtering and PTY)
+  // Current session ID (for SSE filtering)
   const sessionId = createMemo(() => {
     const state = loop.state()
     if (state.type === "running" && state.sessionId) {
@@ -189,34 +195,13 @@ function AppContent(props: AppProps) {
     return undefined
   })
 
-  // Calculate terminal dimensions
-  const terminalCols = createMemo(() => {
-    // Full width minus border (2 chars)
-    return Math.max(40, dimensions().width - TERMINAL_BORDER_HEIGHT)
-  })
-
-  const terminalRows = createMemo(() => {
-    // Full height minus dashboard and terminal border
-    return Math.max(10, dimensions().height - DASHBOARD_HEIGHT - TERMINAL_BORDER_HEIGHT)
-  })
-
-  // PTY management
-  const pty = usePTY({
-    serverUrl: server.url,
-    terminalRef,
-    cols: terminalCols,
-    rows: terminalRows,
-    onExit: (_exitCode) => {
-      // PTY exited - could be normal completion or error
-      // The session.idle event will handle state transition
-    },
-  })
-
-  // Handle PTY resize when terminal dimensions change
-  onResize((width, height) => {
-    const newCols = Math.max(40, width - TERMINAL_BORDER_HEIGHT)
-    const newRows = Math.max(10, height - DASHBOARD_HEIGHT - TERMINAL_BORDER_HEIGHT)
-    pty.resize(newCols, newRows)
+  // On Mount: Load config and detect terminals
+  onMount(async () => {
+    const config = await loadConfig()
+    setOcloopConfig(config)
+    
+    const terminals = await detectInstalledTerminals()
+    setAvailableTerminals(terminals)
   })
 
   // SSE subscription (only when server is ready)
@@ -225,16 +210,22 @@ function AppContent(props: AppProps) {
     sessionId: sessionId,
     autoConnect: false, // We'll connect when server is ready
     handlers: {
+      onSessionCreated: (id) => {
+        activityLog.addEvent("session_start", `Session started: ${id.substring(0, 8)}`)
+      },
+      onSessionError: (id, error) => {
+        activityLog.addEvent("error", `Session error: ${error}`)
+      },
       onSessionIdle: (eventSessionId) => {
         // Only handle if it's our current session
         const currentSession = sessionId()
         const state = loop.state()
         // Also check debug state's sessionId
         const debugSessionId = state.type === "debug" ? state.sessionId : undefined
+        
         if (eventSessionId === currentSession || eventSessionId === debugSessionId) {
           loop.dispatch({ type: "session_idle" })
-          // Kill PTY when session becomes idle
-          pty.kill()
+          activityLog.addEvent("session_idle", "Session idle")
         }
       },
       onTodoUpdated: (_eventSessionId, todos) => {
@@ -242,9 +233,11 @@ function AppContent(props: AppProps) {
         const inProgress = todos.find((t) => t.status === "in_progress")
         if (inProgress) {
           setCurrentTask(inProgress.content)
+          activityLog.addEvent("task", inProgress.content)
         }
       },
       onFileEdited: (file) => {
+        activityLog.addEvent("file_edit", file)
         // Re-parse plan if PLAN.md was edited
         if (file.endsWith(props.planFile || DEFAULTS.PLAN_FILE)) {
           refreshPlan()
@@ -393,15 +386,10 @@ function AppContent(props: AppProps) {
 
       const prompt = await promptFile.text()
 
-      // Spawn PTY for this session
-      pty.spawn(newSessionId)
-
       // Send the prompt asynchronously
       await client.session.promptAsync({
-        path: { id: newSessionId },
-        body: {
-          parts: [{ type: "text", text: prompt }],
-        },
+        sessionID: newSessionId,
+        parts: [{ type: "text", text: prompt }],
       })
 
       // Refresh plan progress
@@ -419,7 +407,7 @@ function AppContent(props: AppProps) {
 
   /**
    * Create a new session in debug mode (no prompt sent)
-   * Just creates a session and spawns PTY for manual interaction
+   * Just creates a session for manual interaction
    */
   async function createDebugSession(): Promise<void> {
     const url = server.url()
@@ -443,9 +431,9 @@ function AppContent(props: AppProps) {
 
       // Dispatch new_session to update debug state with session ID
       loop.dispatch({ type: "new_session", sessionId: newSessionId })
+      
+      activityLog.addEvent("session_start", `Debug session: ${newSessionId.substring(0, 8)}`)
 
-      // Spawn PTY for this session
-      pty.spawn(newSessionId)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       loop.dispatch({
@@ -482,9 +470,6 @@ function AppContent(props: AppProps) {
         // Ignore errors when aborting - we're shutting down anyway
       }
     }
-
-    // Kill PTY
-    pty.kill()
 
     // Disconnect SSE
     sse.disconnect()
@@ -560,7 +545,7 @@ function AppContent(props: AppProps) {
       // Log error but don't block startup
       console.error("Failed to initialize session persistence:", err)
       
-      // If --run flag set, start anyway
+      // If --run flag is set, start anyway
       if (props.run) {
         loop.dispatch({ type: "start" })
         startIteration()
@@ -621,20 +606,6 @@ function AppContent(props: AppProps) {
     }
   })
 
-  // PTY error effect - transition to error state (non-recoverable for now)
-  createEffect(() => {
-    const ptyError = pty.error()
-    const ptyStatus = pty.status()
-    if (ptyStatus === "error" && ptyError) {
-      loop.dispatch({
-        type: "error",
-        source: "pty",
-        message: ptyError.message || "Terminal process failed",
-        recoverable: false,
-      })
-    }
-  })
-
   // Session idle effect - start next iteration if running
   createEffect(() => {
     const state = loop.state()
@@ -643,11 +614,6 @@ function AppContent(props: AppProps) {
     // start the next iteration
     if (state.type === "running" && !state.sessionId && state.iteration > 0) {
       startIteration()
-    }
-
-    // When paused and user resumes (toggle_pause), start next iteration
-    if (state.type === "running" && !state.sessionId && state.iteration > 0) {
-      // This is handled by the state machine transition
     }
   })
 
@@ -690,13 +656,122 @@ function AppContent(props: AppProps) {
       ))
     }
   })
+  
+  /**
+   * Launch terminal or show config dialog
+   */
+  async function handleTerminalLaunch(sid: string) {
+    const config = ocloopConfig()
+    
+    // If no config, show config dialog
+    if (!hasTerminalConfig(config)) {
+       setShowingTerminalConfig(true)
+       return
+    }
+    
+    // Otherwise launch directly
+    launchConfiguredTerminal(sid, config.terminal)
+  }
+  
+  /**
+   * Execute launch and handle errors
+   */
+  async function launchConfiguredTerminal(sid: string, terminalConfig: OcloopConfig['terminal']) {
+     if (!terminalConfig) return
+     
+     const url = server.url()
+     if (!url) return
+     
+     const attachCmd = getAttachCommand(url, sid)
+     const result = await launchTerminal(terminalConfig, attachCmd)
+     
+     if (!result.success) {
+        setTerminalError({
+           name: terminalConfig.type === 'known' ? terminalConfig.name : 'Custom',
+           error: result.error || "Unknown error"
+        })
+     }
+  }
+  
+  // Handlers for Terminal Config Dialog
+  const onConfigSelect = async (terminal: KnownTerminal) => {
+     // Save config
+     const newConfig: OcloopConfig = {
+        ...ocloopConfig(),
+        terminal: {
+           type: 'known',
+           name: terminal.name
+        }
+     }
+     
+     await saveConfig(newConfig)
+     setOcloopConfig(newConfig)
+     setShowingTerminalConfig(false)
+     
+     // Launch!
+     const sid = sessionId()
+     if (sid) {
+        launchConfiguredTerminal(sid, newConfig.terminal)
+     }
+  }
+  
+  const onConfigCustom = async (command: string, args: string) => {
+     // Save config
+     const newConfig: OcloopConfig = {
+        ...ocloopConfig(),
+        terminal: {
+           type: 'custom',
+           command,
+           args
+        }
+     }
+     
+     await saveConfig(newConfig)
+     setOcloopConfig(newConfig)
+     setShowingTerminalConfig(false)
+     
+     // Launch!
+     const sid = sessionId()
+     if (sid) {
+        launchConfiguredTerminal(sid, newConfig.terminal)
+     }
+  }
+  
+  const onConfigCopy = () => {
+     const sid = sessionId()
+     const url = server.url()
+     if (sid && url) {
+        const cmd = getAttachCommand(url, sid)
+        copyToClipboard(cmd)
+     }
+     setShowingTerminalConfig(false)
+  }
+  
+  const onErrorCopy = () => {
+     const sid = sessionId()
+     const url = server.url()
+     if (sid && url) {
+        const cmd = getAttachCommand(url, sid)
+        copyToClipboard(cmd)
+     }
+     setTerminalError(null)
+  }
 
   // Input handler for keybindings
   onMount(() => {
     const inputHandler = (sequence: string): boolean => {
-      // Ctrl+\ (0x1c) - always handle, toggle attach/detach
+      // If showing modals/dialogs, don't interfere unless it's global shortcuts that override them
+      // But typically we want the dialogs to handle their own input.
+      if (showingTerminalConfig() || terminalError()) {
+         return false
+      }
+    
+      // Ctrl+\ (0x1c) - always handle
       if (sequence === KEYS.CTRL_BACKSLASH) {
-        // loop.dispatch({ type: "toggle_attach" }) // Removed in refactor
+        const sid = sessionId()
+        if (sid) {
+           handleTerminalLaunch(sid)
+        }
         return true
       }
 
@@ -744,12 +819,6 @@ function AppContent(props: AppProps) {
 
       // Debug mode handling
       if (loop.isDebug()) {
-        // If attached, forward everything to PTY
-        if (false) { // was loop.isAttached()
-          pty.write(sequence)
-          return true
-        }
-        
         // Detached in debug mode - handle our keybindings
         if (sequence === KEYS.N_LOWER || sequence === KEYS.N_UPPER) {
           // N - create new session
@@ -779,12 +848,6 @@ function AppContent(props: AppProps) {
           return true
         }
         // Consume other input in ready state
-        return true
-      }
-
-      // If attached, forward everything to PTY
-      if (false) { // was loop.isAttached()
-        pty.write(sequence)
         return true
       }
 
@@ -844,30 +907,7 @@ function AppContent(props: AppProps) {
     onCleanup(() => {
       renderer.removeInputHandler(inputHandler)
       shutdownManager.unregister()
-      pty.kill()
     })
-  })
-
-  /**
-   * Handle retry - restart from error state
-   */
-  function handleRetry(): void {
-    if (loop.canRetry()) {
-      loop.dispatch({ type: "retry" })
-    }
-  }
-
-  // Extract error details for display
-  const errorDetails = createMemo(() => {
-    const state = loop.state()
-    if (state.type === "error") {
-      return {
-        source: state.source,
-        message: state.message,
-        recoverable: state.recoverable,
-      }
-    }
-    return null
   })
 
   return (
@@ -881,8 +921,30 @@ function AppContent(props: AppProps) {
         currentTask={currentTask() ?? null}
       />
 
-      {/* Terminal panel takes remaining space */}
-      {/* TerminalPanel removed */}
+      {/* Activity Log takes remaining space */}
+      <ActivityLog events={activityLog.events()} />
+
+      {/* Overlays */}
+      <Show when={showingTerminalConfig()}>
+         <DialogTerminalConfig
+            availableTerminals={availableTerminals()}
+            attachCommand={sessionId() && server.url() ? getAttachCommand(server.url()!, sessionId()!) : ""}
+            onSelect={onConfigSelect}
+            onCustom={onConfigCustom}
+            onCopy={onConfigCopy}
+            onCancel={() => setShowingTerminalConfig(false)}
+         />
+      </Show>
+
+      <Show when={terminalError()}>
+         <DialogTerminalError
+            terminalName={terminalError()?.name || "Terminal"}
+            errorMessage={terminalError()?.error || "Unknown error"}
+            attachCommand={sessionId() && server.url() ? getAttachCommand(server.url()!, sessionId()!) : ""}
+            onCopy={onErrorCopy}
+            onClose={() => setTerminalError(null)}
+         />
+      </Show>
 
       {/* Quit confirmation modal (overlay) */}
       <QuitConfirmation

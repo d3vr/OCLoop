@@ -124,7 +124,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 8: Dashboard Updates
 
-- [ ] Update `src/components/Dashboard.tsx` - Simplify keybind hints
+- [x] Update `src/components/Dashboard.tsx` - Simplify keybind hints
   - Remove `isAttached` prop usage (will always be false)
   - Update keybind hints:
     - Change `"attach"` to `"terminal"` for `Ctrl+\`
@@ -133,14 +133,14 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 9: Entry Point Cleanup
 
-- [ ] Update `src/index.tsx` - Remove ghostty-terminal registration
+- [x] Update `src/index.tsx` - Remove ghostty-terminal registration
   - Remove import: `import { GhosttyTerminalRenderable } from "ghostty-opentui/terminal-buffer"`
   - Remove from `JSX.IntrinsicElements` interface: `"ghostty-terminal": typeof GhosttyTerminalRenderable`
   - Remove from `extend()` call: `"ghostty-terminal": GhosttyTerminalRenderable`
 
 ### Phase 10: Main App Refactor
 
-- [ ] Update `src/App.tsx` - Complete integration
+- [x] Update `src/App.tsx` - Complete integration
   - **Imports:**
     - Remove: `usePTY`, `GhosttyTerminalRenderable` imports
     - Remove: `TerminalPanel` from components import
@@ -187,13 +187,13 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 11: File Cleanup
 
-- [ ] Delete removed files
+- [x] Delete removed files
   - Delete `src/hooks/usePTY.ts`
   - Delete `src/components/TerminalPanel.tsx`
 
 ### Phase 12: Dependencies
 
-- [ ] Update `package.json` - Remove unused dependencies
+- [x] Update `package.json` - Remove unused dependencies
   - Remove from dependencies: `"bun-pty": "latest"`
   - Remove from dependencies: `"ghostty-opentui": "latest"`
   - Run `bun install` to update lockfile

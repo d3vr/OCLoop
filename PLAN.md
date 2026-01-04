@@ -116,7 +116,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 7: Component Index Updates
 
-- [ ] Update `src/components/index.ts` - Export changes
+- [x] Update `src/components/index.ts` - Export changes
   - Remove: `export { TerminalPanel } from "./TerminalPanel"`
   - Add: `export { ActivityLog } from "./ActivityLog"`
   - Add: `export { DialogTerminalConfig } from "./DialogTerminalConfig"`

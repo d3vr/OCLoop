@@ -157,7 +157,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - Inactive: Border = `theme.borderSubtle`, reduced opacity (0.7)
   - Keybind hints format: Key in `theme.text`, description in `theme.textMuted`
 
-- [ ] **Create DialogCompletion component**
+- [x] **Create DialogCompletion component**
   - Create `src/components/DialogCompletion.tsx`
   - Props:
     ```ts

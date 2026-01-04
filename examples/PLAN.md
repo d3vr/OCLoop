@@ -84,4 +84,4 @@ OCLoop will:
 2. Pick one pending (`[ ]`) task at a time
 3. Execute it in a fresh opencode session
 4. Mark it complete and continue to the next task
-5. Create `.PLAN_COMPLETE` when all automatable tasks are done
+5. Create `.loop-complete` when all automatable tasks are done

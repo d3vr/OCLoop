@@ -23,7 +23,7 @@ export const KEYS = {
 export const DEFAULTS = {
   PROMPT_FILE: ".loop-prompt.md",
   PLAN_FILE: "PLAN.md",
-  COMPLETE_FILE: ".PLAN_COMPLETE",
+  COMPLETE_FILE: ".loop-complete",
 } as const
 
 /**

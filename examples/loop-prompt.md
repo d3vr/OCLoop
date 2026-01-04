@@ -43,6 +43,6 @@ After completion:
    - Continue with other tasks
 
 Completion check:
-- If all non-[MANUAL] tasks are either [x] or [BLOCKED], create .PLAN_COMPLETE and exit
-- In .PLAN_COMPLETE, list any remaining [MANUAL] and [BLOCKED] tasks for human follow-up
+- If all non-[MANUAL] tasks are either [x] or [BLOCKED], create .loop-complete and exit
+- In .loop-complete, list any remaining [MANUAL] and [BLOCKED] tasks for human follow-up
 - Do NOT skip automatable tasks - if a task seems hard but doable, attempt it

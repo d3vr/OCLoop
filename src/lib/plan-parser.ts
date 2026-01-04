@@ -117,10 +117,10 @@ export async function parseRemainingTasksFile(planPath: string): Promise<Complet
 }
 
 /**
- * Parses the .PLAN_COMPLETE file to get completion summary.
+ * Parses the .loop-complete file to get completion summary.
  * The file may contain a list of remaining MANUAL and BLOCKED tasks.
  *
- * @param completePath - Path to the .PLAN_COMPLETE file
+ * @param completePath - Path to the .loop-complete file
  * @returns CompletionSummary with arrays of task descriptions
  */
 export async function parseCompletionFile(completePath: string): Promise<CompletionSummary> {
@@ -128,7 +128,7 @@ export async function parseCompletionFile(completePath: string): Promise<Complet
     const file = Bun.file(completePath)
     const content = await file.text()
     
-    // The .PLAN_COMPLETE file is expected to list remaining tasks
+    // The .loop-complete file is expected to list remaining tasks
     // Parse any [MANUAL] or [BLOCKED] items from it
     return parseRemainingTasks(content)
   } catch {

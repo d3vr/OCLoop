@@ -121,13 +121,13 @@ Using bold task IDs helps with organization:
 2. Creates a new session for each iteration
 3. Sends your loop prompt to the session
 4. Waits for the session to become idle (task complete)
-5. Checks for `.PLAN_COMPLETE` file
+5. Checks for `.loop-complete` file
 6. If not complete, starts the next iteration
 
 ### Completion
 
 The loop ends when:
-- OpenCode creates a `.PLAN_COMPLETE` file (indicating all automatable tasks are done)
+- OpenCode creates a `.loop-complete` file (indicating all automatable tasks are done)
 - You quit manually with `Q`
 - An unrecoverable error occurs
 
@@ -147,7 +147,7 @@ OCLoop automatically detects your OpenCode theme configuration from `~/.local/st
 | ------------------- | ------------------------------------------------ |
 | `PLAN.md`           | Task list to execute                             |
 | `.loop-prompt.md`   | Prompt sent to OpenCode each iteration           |
-| `.PLAN_COMPLETE`    | Created when all automatable tasks are complete  |
+| `.loop-complete`    | Created when all automatable tasks are complete  |
 | `AGENTS.md`         | Persistent knowledge for OpenCode across sessions|
 | `.loop-state.json`  | Auto-saved state for resuming interrupted runs   |
 

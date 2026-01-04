@@ -307,7 +307,7 @@ function AppContent(props: AppProps) {
   }
 
   /**
-   * Check if .PLAN_COMPLETE file exists
+   * Check if .loop-complete file exists
    */
   async function checkPlanComplete(): Promise<boolean> {
     try {
@@ -330,14 +330,14 @@ function AppContent(props: AppProps) {
 
     // Check for plan completion first
     if (await checkPlanComplete()) {
-      // Parse remaining tasks from the plan file and .PLAN_COMPLETE file
+      // Parse remaining tasks from the plan file and .loop-complete file
       const planPath = props.planFile || DEFAULTS.PLAN_FILE
       let summary = await parseRemainingTasksFile(planPath)
       
-      // Also check .PLAN_COMPLETE for any additional info
+      // Also check .loop-complete for any additional info
       const completeSummary = await parseCompletionFile(DEFAULTS.COMPLETE_FILE)
       
-      // Merge summaries (prefer the plan file data, but add any unique items from .PLAN_COMPLETE)
+      // Merge summaries (prefer the plan file data, but add any unique items from .loop-complete)
       summary = {
         manualTasks: [...new Set([...summary.manualTasks, ...completeSummary.manualTasks])],
         blockedTasks: [...new Set([...summary.blockedTasks, ...completeSummary.blockedTasks])],

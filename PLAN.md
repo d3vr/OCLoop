@@ -133,7 +133,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
 
 ### Phase 3: Components
 
-- [ ] **Create Dashboard component**
+- [x] **Create Dashboard component**
   - Create `src/components/Dashboard.tsx`
   - Fixed height: 4 rows
   - Props:

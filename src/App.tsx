@@ -18,7 +18,7 @@ import { useSSE } from "./hooks/useSSE"
 import { useLoopState } from "./hooks/useLoopState"
 import { useLoopStats } from "./hooks/useLoopStats"
 import { usePTY } from "./hooks/usePTY"
-import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile } from "./lib/plan-parser"
+import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile, getCurrentTask } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
 import { shutdownManager } from "./lib/shutdown"
 import {
@@ -136,6 +136,8 @@ function AppContent(props: AppProps) {
         prev.type === "ready")
     ) {
       stats.startIteration()
+      // Refresh current task from plan file as fallback for SSE todo updates
+      refreshCurrentTask()
     }
 
     // Detect pause: transitioning from running to pausing
@@ -239,6 +241,8 @@ function AppContent(props: AppProps) {
         // Re-parse plan if PLAN.md was edited
         if (file.endsWith(props.planFile || DEFAULTS.PLAN_FILE)) {
           refreshPlan()
+          // Also refresh current task as fallback for SSE todo updates
+          refreshCurrentTask()
         }
       },
     },
@@ -254,6 +258,20 @@ function AppContent(props: AppProps) {
       setPlanError(undefined)
     } catch (err) {
       setPlanError(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  /**
+   * Refresh current task from plan file (fallback when SSE doesn't provide todo update)
+   */
+  async function refreshCurrentTask(): Promise<void> {
+    try {
+      const task = await getCurrentTask(props.planFile || DEFAULTS.PLAN_FILE)
+      if (task) {
+        setCurrentTask(task)
+      }
+    } catch {
+      // Silently ignore errors - current task display is non-critical
     }
   }
 

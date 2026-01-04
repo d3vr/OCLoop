@@ -97,7 +97,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 5: SSE Hook Updates
 
-- [ ] Update `src/hooks/useSSE.ts` - Add new event handlers
+- [x] Update `src/hooks/useSSE.ts` - Add new event handlers
   - Add to `SSEEventHandlers` interface:
     - `onSessionCreated?: (sessionId: string) => void`
     - `onSessionError?: (sessionId: string | undefined, error: string) => void`
@@ -107,7 +107,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 6: State Machine Cleanup
 
-- [ ] Update `src/hooks/useLoopState.ts` - Remove attach-related state
+- [x] Update `src/hooks/useLoopState.ts` - Remove attach-related state
   - Remove `isAttached` signal
   - Remove `toggle_attach` action handling
   - Remove any attach/detach state transitions

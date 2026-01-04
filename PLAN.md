@@ -1,944 +1,425 @@
-# OCLoop Implementation Plan
+# OCLoop UI Refactor Plan
 
 ## Overview
 
-OCLoop is a loop harness that orchestrates opencode to execute tasks from a PLAN.md file iteratively. Each iteration runs in an isolated session, with the opencode TUI embedded and visible throughout. The user can pause, attach/detach from the TUI, and monitor progress.
+Refactor the OCLoop TUI to match OpenCode's visual design patterns and provide a stable, informative dashboard experience. The current implementation has several issues:
 
-### Core Value Proposition
+1. **Unstable Layout**: StatusBar grows dynamically based on content, causing layout shifts
+2. **Hardcoded Colors**: No theming system; colors are scattered strings like `"cyan"`, `"yellow"`
+3. **Poor Focus Indication**: Unclear which pane (header vs terminal) is "active"
+4. **Missing Timing Data**: No iteration time tracking, averages, or ETA
+5. **No Session Persistence**: Cannot resume interrupted runs
+6. **Text Dump in StatusBar**: Completion summary clutters the status area instead of using a modal
 
-- **Automated task execution**: Execute a plan one task at a time, each in a fresh context window
-- **Full visibility**: See the opencode TUI at all times, attach to interact when needed
-- **Knowledge persistence**: Learnings are documented in AGENTS.md and docs/ across iterations
-- **Clean boundaries**: New session per iteration, pause between iterations
-
----
-
-## Reference Codebases
-
-When in doubt about implementation details, consult these codebases which are available locally:
-
-| Codebase          | Path                               | Purpose                                      |
-| ----------------- | ---------------------------------- | -------------------------------------------- |
-| OpenCode          | `../opencode`        | Server/client SDK, SSE events, API structure |
-| OpenTUI           | `../opentui`         | TUI rendering, Solid.js integration, input handling |
-| Ghostty-OpenTUI   | `../ghostty-opentui` | Terminal emulation, PTY rendering patterns   |
-
-Always check these directories to understand:
-- How hooks are structured and composed
-- How input handling and keybindings work
-- How PTY management is done
-- How SSE events are consumed
-- Component patterns and best practices
+This refactor introduces OpenCode's provider-based architecture, a theme system that auto-detects the user's OpenCode theme, a fixed-height Dashboard, proper modal dialogs, and session state persistence.
 
 ---
 
-## Dependencies
-
-| Package           | Purpose                            |
-| ----------------- | ---------------------------------- |
-| `@opentui/core`   | TUI rendering engine               |
-| `@opentui/solid`  | Solid.js reconciler for opentui    |
-| `solid-js`        | Reactive UI framework              |
-| `ghostty-opentui` | Terminal emulation + PTY rendering |
-| `bun-pty`         | PTY spawning and management        |
-| `@opencode-ai/sdk`| OpenCode server/client SDK         |
-
----
-
-## Project Structure
-
-```
-ocloop/
-├── src/
-│   ├── index.tsx                 # Entry point
-│   ├── App.tsx                   # Main application component
-│   ├── components/
-│   │   ├── StatusBar.tsx         # Top status bar with progress
-│   │   ├── TerminalPanel.tsx     # ghostty-terminal wrapper
-│   │   ├── ProgressIndicator.tsx # Visual progress bar
-│   │   └── QuitConfirmation.tsx  # Quit confirmation modal
-│   ├── hooks/
-│   │   ├── useServer.ts          # OpenCode server lifecycle
-│   │   ├── useSSE.ts             # SSE event subscription
-│   │   ├── useLoopState.ts       # Main state machine
-│   │   ├── usePlanProgress.ts    # PLAN.md parsing
-│   │   └── usePTY.ts             # PTY management
-│   ├── lib/
-│   │   ├── api.ts                # OpenCode API helpers
-│   │   ├── plan-parser.ts        # PLAN.md parser
-│   │   └── constants.ts          # Keybindings, colors, etc.
-│   └── types.ts                  # TypeScript types
-├── package.json
-├── tsconfig.json
-├── bunfig.toml
-└── README.md
-```
-
----
-
-## State Machine
-
-### States
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        STARTING                              │
-│                  (server startup, init)                      │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ server ready
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    RUNNING_DETACHED                          │
-│         (iteration in progress, OCLoop has input)            │
-│                                                              │
-│  [Ctrl+\] → RUNNING_ATTACHED                                │
-│  [Space]  → PAUSING                                          │
-│  [Q]      → STOPPING                                         │
-│  session.idle → next iteration or COMPLETE                   │
-└─────────────────────────────────────────────────────────────┘
-        │                                           ▲
-        │ Ctrl+\                                    │ Ctrl+\
-        ▼                                           │
-┌─────────────────────────────────────────────────────────────┐
-│                    RUNNING_ATTACHED                          │
-│         (iteration in progress, PTY has input)               │
-│                                                              │
-│  [Ctrl+\] → RUNNING_DETACHED                                │
-│  session.idle → RUNNING_DETACHED (for next iteration)        │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                        PAUSING                               │
-│    (waiting for current iteration to complete, then pause)   │
-│                                                              │
-│  session.idle → PAUSED_DETACHED                              │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    PAUSED_DETACHED                           │
-│              (loop paused, OCLoop has input)                 │
-│                                                              │
-│  [Ctrl+\] → PAUSED_ATTACHED                                 │
-│  [Space]  → RUNNING_DETACHED (resume)                        │
-│  [Q]      → STOPPING                                         │
-└─────────────────────────────────────────────────────────────┘
-        │                                           ▲
-        │ Ctrl+\                                    │ Ctrl+\
-        ▼                                           │
-┌─────────────────────────────────────────────────────────────┐
-│                    PAUSED_ATTACHED                           │
-│              (loop paused, PTY has input)                    │
-│                                                              │
-│  [Ctrl+\] → PAUSED_DETACHED                                 │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                        STOPPING                              │
-│              (cleanup, abort if needed)                      │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                        STOPPED                               │
-│                    (exit process)                            │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                        COMPLETE                              │
-│              (.PLAN_COMPLETE detected)                       │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### State Type Definition
-
-```typescript
-type LoopState =
-  | { type: "starting" }
-  | { type: "running"; attached: boolean; iteration: number; sessionId: string }
-  | { type: "pausing"; iteration: number; sessionId: string }
-  | { type: "paused"; attached: boolean; iteration: number }
-  | { type: "stopping" }
-  | { type: "stopped" }
-  | { type: "complete"; iterations: number }
-```
-
----
-
-## Keybindings
-
-| Key             | Condition     | Action                      |
-| --------------- | ------------- | --------------------------- |
-| `Ctrl+\`        | Always        | Toggle attach/detach        |
-| `Space`         | Detached only | Toggle pause                |
-| `Q`             | Detached only | Show quit confirmation modal |
-| Everything else | Attached      | Forward to PTY              |
-
-### Implementation Pattern
-
-```typescript
-renderer.prependInputHandler((sequence: string): boolean => {
-  // Ctrl+\ (0x1c) - always handle
-  if (sequence === "\x1c") {
-    toggleAttach()
-    return true
-  }
-
-  // If showing quit confirmation modal
-  if (showingQuitConfirmation) {
-    if (sequence === "y" || sequence === "Y") {
-      quit()
-      return true
-    }
-    if (sequence === "n" || sequence === "N" || sequence === "\x1b") { // n, N, or Escape
-      hideQuitConfirmation()
-      return true
-    }
-    return true // consume all other input while modal is shown
-  }
-
-  // If attached, forward everything to PTY
-  if (state.attached) {
-    pty.write(sequence)
-    return true
-  }
-
-  // Detached - handle our keybindings
-  if (sequence === " ") {
-    togglePause()
-    return true
-  }
-  if (sequence === "q" || sequence === "Q") {
-    showQuitConfirmation()
-    return true
-  }
-
-  return false // let opentui handle (scrolling, etc.)
-})
-```
-
----
-
-## UI Layout
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ [▶ RUNNING] Iter 3 | Plan: [4/12] ██████░░░░ 33%           │
-│ [Ctrl+\] Attach  [Space] Pause  [Q] Quit                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   ┌───────────────────────────────────────────────────────┐ │
-│   │                                                       │ │
-│   │              opencode TUI (ghostty-terminal)          │ │
-│   │                                                       │ │
-│   │                                                       │ │
-│   │                                                       │ │
-│   └───────────────────────────────────────────────────────┘ │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Visual States
-
-| State              | Status Bar                               | TUI Panel            |
-| ------------------ | ---------------------------------------- | -------------------- |
-| Running (Detached) | Bright, shows keybindings                | Dimmed (opacity 0.7) |
-| Running (Attached) | Dimmed, shows "Ctrl+\ to detach"         | Bright (opacity 1.0) |
-| Pausing            | Yellow "PAUSING...", keybindings hidden  | Dimmed               |
-| Paused (Detached)  | Yellow "PAUSED", shows resume keybinding | Dimmed               |
-| Paused (Attached)  | Yellow "PAUSED", dimmed                  | Bright               |
-| Quit Confirmation  | Modal overlay: "Quit OCLoop? [Y/N]"      | Dimmed               |
-| Complete           | Green "COMPLETE", shows summary          | Shows final state    |
-
----
-
-## Data Flow
-
-### Startup Sequence
-
-```
-1. Parse command line args (--port, --model, --prompt-file)
-2. Check PLAN.md exists
-3. Check .loop-prompt.md exists (error if missing)
-4. Start opencode server (SDK: createOpencodeServer)
-5. Subscribe to SSE events
-6. Parse PLAN.md for initial progress
-7. Transition to RUNNING_DETACHED
-8. Start first iteration
-```
-
-### Iteration Sequence
-
-```
-1. Check .PLAN_COMPLETE exists → COMPLETE
-2. Create new session (API: POST /session)
-3. Spawn PTY: opencode attach <url> --session <id>
-4. Feed PTY output to ghostty-terminal
-5. Send prompt (API: POST /session/:id/prompt_async)
-6. Listen for events:
-   - message.part.updated → (visual only, PTY shows it)
-   - todo.updated → update current task display
-   - session.diff → (visual only)
-   - session.idle → iteration complete
-7. Kill PTY
-8. If state is PAUSING → transition to PAUSED_DETACHED
-9. Otherwise → start next iteration
-```
-
-### SSE Event Handling
-
-```typescript
-interface SSEHandlers {
-  "session.idle": (e: EventSessionIdle) => {
-    if (e.sessionID === currentSessionId) {
-      completeIteration()
-    }
-  }
-
-  "session.status": (e: EventSessionStatus) => {
-    updateSessionStatus(e.status)
-  }
-
-  "todo.updated": (e: EventTodoUpdated) => {
-    if (e.sessionID === currentSessionId) {
-      updateCurrentTaskDisplay(e.todos)
-    }
-  }
-
-  "file.edited": (e: EventFileEdited) => {
-    // Could trigger PLAN.md re-parse if needed
-    if (e.file.endsWith("PLAN.md")) {
-      reParsePlan()
-    }
-  }
-}
-```
-
----
-
-## PLAN.md Parser
-
-### Input Format
-
-```markdown
 ## Backlog
 
-- [ ] **1.1** Task one description
-- [ ] **1.2** Task two description
-- [x] **1.3** Completed task
-- [MANUAL] **2.1** Manual testing task
-- [BLOCKED: reason] **2.2** Blocked task
-```
+### Phase 1: Infrastructure
 
-### Output
+- [ ] **Vendor OpenCode theme definitions**
+  - Create directory `src/lib/themes/`
+  - Copy all 32 theme JSON files from `../opencode/packages/opencode/src/cli/cmd/tui/context/theme/`:
+    - `aura.json`, `ayu.json`, `catppuccin.json`, `catppuccin-frappe.json`, `catppuccin-macchiato.json`
+    - `cobalt2.json`, `cursor.json`, `dracula.json`, `everforest.json`, `flexoki.json`
+    - `github.json`, `gruvbox.json`, `kanagawa.json`, `lucent-orng.json`, `material.json`
+    - `matrix.json`, `mercury.json`, `monokai.json`, `nightowl.json`, `nord.json`
+    - `one-dark.json`, `opencode.json`, `orng.json`, `osaka-jade.json`, `palenight.json`
+    - `rosepine.json`, `solarized.json`, `synthwave84.json`, `tokyonight.json`
+    - `vercel.json`, `vesper.json`, `zenburn.json`
+  - Create `src/lib/themes/index.ts` to export all themes as a record
 
-```typescript
-interface PlanProgress {
-  total: number // All tasks
-  completed: number // [x] tasks
-  pending: number // [ ] tasks (non-manual, non-blocked)
-  manual: number // [MANUAL] tasks
-  blocked: number // [BLOCKED] tasks
-  automatable: number // pending (what the loop will do)
-  percentComplete: number // completed / (total - manual)
-}
-```
+- [ ] **Create theme resolver utility**
+  - Create `src/lib/theme-resolver.ts`
+  - Port the `resolveTheme()` function from OpenCode's `context/theme.tsx`
+  - Handle color resolution: hex strings, def references, dark/light variants
+  - Export `ThemeColors` type with all semantic tokens:
+    - `primary`, `secondary`, `accent`
+    - `background`, `backgroundPanel`, `backgroundElement`
+    - `text`, `textMuted`
+    - `border`, `borderActive`, `borderSubtle`
+    - `success`, `warning`, `error`, `info`
 
-### Parser Implementation
+- [ ] **Create ThemeContext provider**
+  - Create `src/context/ThemeContext.tsx`
+  - On init, read `~/.local/state/opencode/kv.json` using XDG paths:
+    - Extract `theme` (string, default: `"opencode"`)
+    - Extract `theme_mode` (`"dark"` | `"light"`, default: `"dark"`)
+  - Load corresponding theme from vendored files
+  - Fallback to `opencode` theme if file missing or theme not found
+  - Export `useTheme()` hook returning `{ theme: ThemeColors, mode: string }`
+  - Export `ThemeProvider` component
 
-```typescript
-function parsePlan(content: string): PlanProgress {
-  const lines = content.split("\n")
-  let total = 0,
-    completed = 0,
-    manual = 0,
-    blocked = 0
+- [ ] **Create DialogContext provider**
+  - Create `src/context/DialogContext.tsx`
+  - Implement stack-based dialog manager:
+    - `show(component: () => JSX.Element)`: Push dialog to stack
+    - `replace(component: () => JSX.Element)`: Clear stack, push new dialog
+    - `clear()`: Pop all dialogs
+    - `stack`: Accessor for current dialog stack
+  - Handle Escape key to dismiss top dialog
+  - Export `useDialog()` hook and `DialogProvider` component
 
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed.startsWith("- [x]") || trimmed.startsWith("- [X]")) {
-      total++
-      completed++
-    } else if (trimmed.startsWith("- [ ]")) {
-      total++
-    } else if (trimmed.startsWith("- [MANUAL]")) {
-      total++
-      manual++
-    } else if (trimmed.match(/^- \[BLOCKED/i)) {
-      total++
-      blocked++
+- [ ] **Create base Dialog component**
+  - Create `src/ui/Dialog.tsx`
+  - Renders as absolute-positioned overlay:
+    - Full screen dimensions
+    - Semi-transparent black backdrop (`RGBA(0, 0, 0, 150)`)
+    - Centered content box with `theme.backgroundPanel` background
+  - Props: `onClose: () => void`, `children: JSX.Element`
+  - Click on backdrop calls `onClose`
+
+### Phase 2: State & Logic
+
+- [ ] **Create loop state persistence utility**
+  - Create `src/lib/loop-state.ts`
+  - Define schema:
+    ```ts
+    interface LoopStateFile {
+      version: 1
+      iteration: number
+      iterationHistory: number[]  // Active times in ms
+      createdAt: number
+      updatedAt: number
     }
-  }
+    ```
+  - Implement functions:
+    - `loadLoopState(): Promise<LoopStateFile | null>` - Read `.loop-state.json` from cwd
+    - `saveLoopState(state: LoopStateFile): Promise<void>` - Write to `.loop-state.json`
+    - `deleteLoopState(): Promise<void>` - Remove file on completion
+  - Handle file not found, parse errors gracefully (return null)
 
-  const pending = total - completed - manual - blocked
-  const automatable = pending
-  const denominator = total - manual
-  const percentComplete = denominator > 0 ? Math.round((completed / denominator) * 100) : 100
+- [ ] **Create .gitignore auto-update utility**
+  - Add to `src/lib/loop-state.ts`:
+    - `ensureGitignore(): Promise<void>`
+    - Check if `.gitignore` exists in cwd
+    - If exists, check if `.loop-state.json` is listed
+    - If not listed, append `\n.loop-state.json` to file
+    - If `.gitignore` doesn't exist, create it with `.loop-state.json`
 
-  return { total, completed, pending, manual, blocked, automatable, percentComplete }
-}
-```
+- [ ] **Create useLoopStats hook**
+  - Create `src/hooks/useLoopStats.ts`
+  - State:
+    ```ts
+    {
+      iterationStartTime: number | null
+      pauseStartTime: number | null
+      accumulatedPauseTime: number
+      history: number[]  // Active times for completed iterations
+    }
+    ```
+  - Methods:
+    - `startIteration()`: Set `iterationStartTime = Date.now()`, reset `accumulatedPauseTime = 0`
+    - `pause()`: Set `pauseStartTime = Date.now()`
+    - `resume()`: Add `(Date.now() - pauseStartTime)` to `accumulatedPauseTime`, clear `pauseStartTime`
+    - `endIteration()`: Calculate active time, push to history, return duration
+    - `loadFromState(state: LoopStateFile)`: Restore history from persisted state
+  - Computed:
+    - `elapsedTime()`: Current iteration elapsed (updates every 1s via interval), minus accumulated pause
+    - `averageTime()`: `sum(history) / history.length` or null if empty
+    - `totalActiveTime()`: `sum(history)` + current iteration active time
+    - `estimatedTotal(remaining: number)`: `averageTime * remaining` or null
+  - Format helper: `formatDuration(ms: number): string` → `"1m 23s"`, `"45s"`, `"2h 15m"`
+  - Return `"N/A"` for estimates when no history data available
+
+- [ ] **Add current task detection to plan parser**
+  - Modify `src/lib/plan-parser.ts`
+  - Add function `getCurrentTask(planFile: string): Promise<string | null>`
+  - Parse PLAN.md and find first line matching `- [ ]` pattern
+  - Extract task text (strip the checkbox prefix)
+  - Return null if no unchecked tasks found
+
+### Phase 3: Components
+
+- [ ] **Create Dashboard component**
+  - Create `src/components/Dashboard.tsx`
+  - Fixed height: 4 rows
+  - Props:
+    ```ts
+    {
+      isActive: boolean
+      state: LoopState
+      progress: PlanProgress | null
+      stats: ReturnType<typeof useLoopStats>
+      currentTask: string | null
+      isAttached: boolean
+    }
+    ```
+  - Layout (4 rows):
+    - Row 1: State badge + Iteration + Tasks progress bar
+    - Row 2: Timer (current) + Average + Estimated total
+    - Row 3: Current task (truncated if needed)
+    - Row 4: Keybind hints (OpenCode style: `Ctrl+\ attach  Space pause  Q quit`)
+  - Styling:
+    - Active: Border = `theme.primary`, full opacity
+    - Inactive: Border = `theme.borderSubtle`, reduced opacity (0.7)
+  - Keybind hints format: Key in `theme.text`, description in `theme.textMuted`
+
+- [ ] **Create DialogCompletion component**
+  - Create `src/components/DialogCompletion.tsx`
+  - Props:
+    ```ts
+    {
+      iterations: number
+      totalTime: number  // ms
+      manualTasks: string[]
+      blockedTasks: string[]
+    }
+    ```
+  - Layout:
+    - Title: "✓ Plan Complete"
+    - Summary: "Completed in X iterations (Ym Zs)"
+    - If manualTasks.length > 0: Section with header "Manual Tasks" + bullet list
+    - If blockedTasks.length > 0: Section with header "Blocked Tasks" + bullet list
+    - If no tasks: "All automatable tasks finished."
+    - Footer: "Press any key to exit"
+  - Use theme colors: `theme.success` for checkmark, `theme.warning` for manual, `theme.error` for blocked
+
+- [ ] **Create DialogError component**
+  - Create `src/components/DialogError.tsx`
+  - Props:
+    ```ts
+    {
+      source: string
+      message: string
+      recoverable: boolean
+      onRetry?: () => void
+      onQuit: () => void
+    }
+    ```
+  - Layout:
+    - Title: "Error" with `theme.error` color
+    - Source badge and message
+    - If recoverable: "[R] Retry  [Q] Quit"
+    - If not recoverable: "[Q] Quit"
+
+- [ ] **Create DialogResume component**
+  - Create `src/components/DialogResume.tsx`
+  - Props:
+    ```ts
+    {
+      iteration: number
+      onResume: () => void
+      onStartFresh: () => void
+    }
+    ```
+  - Layout:
+    - Title: "Resume Previous Run?"
+    - Message: "Found interrupted session at iteration {iteration}"
+    - Buttons: "[Y] Resume  [N] Start Fresh"
+
+- [ ] **Refactor TerminalPanel component**
+  - Modify `src/components/TerminalPanel.tsx`
+  - Remove hardcoded styles:
+    - Remove `border: true`, `borderStyle: "single"`
+    - Remove `borderColor: props.dimmed ? "gray" : "cyan"`
+  - Add props:
+    - `isActive: boolean` (replaces `dimmed`)
+  - Import and use `useTheme()`:
+    - Border: `isActive ? theme.primary : theme.borderSubtle`
+    - Opacity: `isActive ? 1 : 0.7`
+  - Keep `showCursor={isActive}` behavior
+
+- [ ] **Refactor ProgressIndicator component**
+  - Modify `src/components/ProgressIndicator.tsx`
+  - Import and use `useTheme()`
+  - Replace hardcoded colors:
+    - Filled segments: `theme.primary`
+    - Empty segments: `theme.borderSubtle`
+
+- [ ] **Refactor QuitConfirmation to use Dialog system**
+  - Modify `src/components/QuitConfirmation.tsx`
+  - Remove the component's own overlay/positioning logic
+  - Convert to a simple content component that gets wrapped by Dialog
+  - Or: Delete file and inline into a `DialogQuit.tsx` that uses the Dialog system
+
+### Phase 4: Integration
+
+- [ ] **Update App.tsx with provider hierarchy**
+  - Modify `src/App.tsx`
+  - Wrap app in providers (order matters):
+    ```tsx
+    <ThemeProvider>
+      <DialogProvider>
+        <AppContent />
+      </DialogProvider>
+    </ThemeProvider>
+    ```
+  - Move current App logic into `AppContent` component
+
+- [ ] **Integrate useLoopStats into App**
+  - Modify `src/App.tsx`
+  - Initialize `useLoopStats()` hook
+  - Wire up to loop state machine:
+    - On `iteration_started`: Call `stats.startIteration()`
+    - On `toggle_pause` (pause): Call `stats.pause()`
+    - On `toggle_pause` (resume): Call `stats.resume()`
+    - On `session_idle`: Call `stats.endIteration()`, update persisted state
+
+- [ ] **Integrate session persistence into App**
+  - Modify `src/App.tsx`
+  - On startup (after server ready):
+    - Call `ensureGitignore()`
+    - Call `loadLoopState()`
+    - If state exists: Show `DialogResume` via dialog system
+    - On resume: Load history into stats, set iteration count
+    - On start fresh: Delete state file, proceed normally
+  - On iteration complete: Call `saveLoopState()` with updated data
+  - On plan complete: Call `deleteLoopState()`
+
+- [ ] **Integrate current task detection**
+  - Modify `src/App.tsx`
+  - Track `currentTask` signal
+  - Primary source: SSE `onTodoUpdated` with `status: "in_progress"`
+  - Fallback: On `iteration_started` and `onFileEdited` for PLAN.md, call `getCurrentTask()`
+  - Pass to Dashboard component
+
+- [ ] **Implement new layout structure**
+  - Modify `src/App.tsx`
+  - Remove `STATUS_BAR_HEIGHT` constant
+  - New layout:
+    ```tsx
+    <box flexDirection="column" height="100%">
+      <Dashboard
+        isActive={!isAttached}
+        state={loop.state()}
+        progress={planProgress()}
+        stats={stats}
+        currentTask={currentTask()}
+        isAttached={loop.isAttached()}
+      />
+      <TerminalPanel
+        isActive={isAttached}
+        terminalRef={...}
+        cols={...}
+        rows={...}
+      />
+    </box>
+    ```
+  - Calculate terminal rows: `dimensions.height - 4` (Dashboard fixed at 4 rows)
+
+- [ ] **Wire up completion dialog**
+  - Modify `src/App.tsx`
+  - When `loop.state().type === "complete"`:
+    - Calculate `totalTime` from stats
+    - Show `DialogCompletion` via dialog system
+    - On any key press in dialog: Exit process
+
+- [ ] **Wire up error dialog**
+  - Modify `src/App.tsx`
+  - When `loop.state().type === "error"`:
+    - Show `DialogError` via dialog system
+    - Handle retry/quit actions
+
+- [ ] **Clean up deleted components**
+  - Delete `src/components/StatusBar.tsx`
+  - Delete `src/components/ErrorDisplay.tsx`
+  - Update `src/components/index.ts` exports:
+    - Remove: `StatusBar`, `ErrorDisplay`
+    - Add: `Dashboard`, `DialogCompletion`, `DialogError`, `DialogResume`
+
+### Phase 5: Polish & Testing
+
+- [ ] [MANUAL] **Visual verification of theme matching**
+  - Run `opencode` and note current theme
+  - Run `ocloop` in same terminal
+  - Verify colors match (primary, background, text, borders)
+  - Test with at least 3 different themes (opencode, dracula, tokyonight)
+
+- [ ] [MANUAL] **Test focus indication**
+  - Start ocloop, verify Dashboard has bright border (detached state)
+  - Press `Ctrl+\` to attach, verify Terminal gets bright border, Dashboard dims
+  - Press `Ctrl+\` to detach, verify Dashboard gets bright border back
+
+- [ ] [MANUAL] **Test timing accuracy**
+  - Run a short plan with 2-3 iterations
+  - Verify current iteration timer updates every second
+  - Verify timer pauses when Space is pressed
+  - Verify average calculation after 2+ iterations
+  - Verify total time in completion dialog matches expected
+
+- [ ] [MANUAL] **Test session persistence**
+  - Start a run, complete 2 iterations
+  - Press Q to quit mid-run
+  - Verify `.loop-state.json` exists with correct data
+  - Restart ocloop, verify resume prompt appears
+  - Select resume, verify iteration count continues correctly
+  - Complete plan, verify `.loop-state.json` is deleted
+
+- [ ] [MANUAL] **Test .gitignore auto-update**
+  - Remove `.loop-state.json` from .gitignore (or delete .gitignore)
+  - Run ocloop
+  - Verify `.loop-state.json` was added to .gitignore
+
+- [ ] [MANUAL] **Test empty completion scenario**
+  - Create a plan with no `[MANUAL]` or `[BLOCKED]` tasks
+  - Run to completion
+  - Verify dialog shows "All automatable tasks finished." message
 
 ---
 
-## PTY Management
+## Testing Notes
 
-### Spawning
+### Manual Testing Workflow
 
-```typescript
-import { spawn, type IPty } from "bun-pty"
+1. **Build the project**:
+   ```bash
+   bun run build
+   ```
 
-function spawnOpencodePTY(serverUrl: string, sessionId: string, cols: number, rows: number): IPty {
-  return spawn("opencode", ["attach", serverUrl, "--session", sessionId], {
-    name: "xterm-256color",
-    cols,
-    rows,
-    cwd: process.cwd(),
-  })
-}
-```
+2. **Run in development mode**:
+   ```bash
+   bun run dev
+   ```
 
-### Lifecycle
+3. **Test with a sample plan**:
+   - Create a `PLAN.md` with 3-5 simple tasks
+   - Create a `PROMPT.md` with basic instructions
+   - Run `bun run dev --run` to auto-start
 
-```typescript
-interface PTYManager {
-  pty: IPty | null
-  terminalRef: React.RefObject<GhosttyTerminalRenderable>
+4. **Theme verification**:
+   - Check `~/.local/state/opencode/kv.json` for current theme
+   - Compare ocloop colors against opencode TUI
 
-  spawn(sessionId: string): void
-  kill(): void
-  write(data: string): void
-  resize(cols: number, rows: number): void
-}
-```
+### Key Scenarios to Test
 
-### Data Flow
-
-```
-PTY stdout → pty.onData() → terminalRef.current.feed(data) → ghostty-terminal renders
-```
-
----
-
-## Prompt Configuration
-
-### Loop Prompt File
-
-The loop prompt is read from `.loop-prompt.md` in the project directory. This file is **required** - OCLoop will exit with an error if not found.
-
-Default locations:
-- **Prompt file**: `.loop-prompt.md`
-- **Plan file**: `PLAN.md`
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Fresh start | No resume prompt, starts at iteration 1 |
+| Resume after quit | Shows resume prompt with correct iteration |
+| Pause/Resume timing | Timer pauses, total time accurate |
+| Attach/Detach | Border colors swap correctly |
+| Plan complete | Modal shows, file deleted, any key exits |
+| Error (recoverable) | Modal shows retry option |
+| Error (non-recoverable) | Modal shows quit only |
+| Theme not found | Falls back to opencode theme |
+| kv.json missing | Falls back to opencode theme, dark mode |
 
 ---
 
-## Component Specifications
-
-### StatusBar.tsx
-
-```typescript
-interface StatusBarProps {
-  state: LoopState
-  planProgress: PlanProgress
-  currentTask?: string
-}
-
-// Displays:
-// - State indicator (▶ RUNNING, ⏸ PAUSED, ✓ COMPLETE)
-// - Iteration number
-// - Plan progress (e.g., [4/12] with progress bar)
-// - Current task description (truncated)
-// - Keybinding hints (context-sensitive)
-```
-
-### TerminalPanel.tsx
-
-```typescript
-interface TerminalPanelProps {
-  terminalRef: React.RefObject<GhosttyTerminalRenderable>
-  cols: number
-  rows: number
-  dimmed: boolean
-}
-
-// Wraps ghostty-terminal with:
-// - Border styling
-// - Opacity based on dimmed state
-// - Resize handling
-```
-
-### QuitConfirmation.tsx
-
-```typescript
-interface QuitConfirmationProps {
-  visible: boolean
-  onConfirm: () => void
-  onCancel: () => void
-}
-
-// Renders centered modal overlay:
-// ┌─────────────────────────┐
-// │   Quit OCLoop? [Y/N]    │
-// └─────────────────────────┘
-// 
-// Keys handled by parent input handler, not component
-```
-
-### ProgressIndicator.tsx
-
-```typescript
-interface ProgressIndicatorProps {
-  completed: number
-  total: number
-  width: number
-}
-
-// Renders: ██████░░░░ 60%
-```
-
----
-
-## Hooks Specifications
-
-### useServer.ts
-
-```typescript
-interface UseServerReturn {
-  url: string | null
-  port: number | null // The actual port used by the server
-  status: "starting" | "ready" | "error" | "stopped"
-  error?: Error
-  stop: () => Promise<void>
-}
-
-// Port handling is done by opencode natively:
-// - If port is 0 or omitted: opencode tries 4096 first, then random OS-assigned port
-// - If port is specified: opencode uses exactly that port
-function useServer(port?: number): UseServerReturn
-```
-
-**SDK Port Retrieval**: The `createOpencodeServer()` function from `@opencode-ai/sdk` returns the actual URL (including port) after the server starts:
-
-```typescript
-import { createOpencodeServer } from "@opencode-ai/sdk"
-
-const server = await createOpencodeServer() // or { port: 0 } to force random
-console.log(server.url) // e.g., "http://127.0.0.1:4096" or "http://127.0.0.1:54321"
-
-// To extract the port:
-const port = new URL(server.url).port
-```
-
-The SDK works by:
-1. Spawning `opencode serve --hostname=... --port=...`
-2. Parsing stdout for the line: `opencode server listening on http://hostname:port`
-3. Returning the URL from that output
-
-This means even with `port: 0`, OCLoop can discover the actual assigned port.
-
-### useSSE.ts
-
-```typescript
-interface UseSSEOptions {
-  url: string
-  onEvent: (event: Event) => void
-  onError?: (error: Error) => void
-}
-
-function useSSE(options: UseSSEOptions): {
-  connected: boolean
-  reconnect: () => void
-}
-```
-
-### useLoopState.ts
-
-```typescript
-interface UseLoopStateReturn {
-  state: LoopState
-  dispatch: (action: LoopAction) => void
-
-  // Derived state
-  isAttached: boolean
-  isRunning: boolean
-  isPaused: boolean
-  canPause: boolean
-  canQuit: boolean
-  
-  // Quit confirmation modal
-  showingQuitConfirmation: boolean
-  showQuitConfirmation: () => void
-  hideQuitConfirmation: () => void
-}
-
-type LoopAction =
-  | { type: "server_ready" }
-  | { type: "toggle_attach" }
-  | { type: "toggle_pause" }
-  | { type: "quit" }
-  | { type: "session_idle" }
-  | { type: "iteration_started"; sessionId: string }
-  | { type: "plan_complete" }
-```
-
-### usePlanProgress.ts
-
-```typescript
-interface UsePlanProgressReturn {
-  progress: PlanProgress | null
-  loading: boolean
-  error?: Error
-  refresh: () => Promise<void>
-}
-
-function usePlanProgress(planPath?: string): UsePlanProgressReturn
-```
-
-### usePTY.ts
-
-```typescript
-interface UsePTYReturn {
-  pty: IPty | null
-  spawn: (sessionId: string) => void
-  kill: () => void
-  write: (data: string) => void
-  resize: (cols: number, rows: number) => void
-}
-
-function usePTY(
-  serverUrl: string,
-  terminalRef: RefObject<GhosttyTerminalRenderable>,
-  cols: number,
-  rows: number,
-): UsePTYReturn
-```
-
----
-
-## API Helpers (lib/api.ts)
-
-```typescript
-import { createOpencodeClient } from "@opencode-ai/sdk"
-
-export function createClient(url: string) {
-  return createOpencodeClient({ baseUrl: url })
-}
-
-export async function createSession(client: OpencodeClient): Promise<Session> {
-  const result = await client.session.create()
-  return result.data
-}
-
-export async function sendPromptAsync(client: OpencodeClient, sessionId: string, prompt: string): Promise<void> {
-  await client.session.promptAsync({
-    path: { id: sessionId },
-    body: {
-      parts: [{ type: "text", text: prompt }],
-    },
-  })
-}
-
-export async function abortSession(client: OpencodeClient, sessionId: string): Promise<void> {
-  await client.session.abort({ path: { id: sessionId } })
-}
-```
-
----
-
-## Entry Point (index.tsx)
-
-```typescript
-#!/usr/bin/env bun
-
-import { render } from "@opentui/solid"
-import { extend } from "@opentui/solid"
-import { GhosttyTerminalRenderable } from "ghostty-opentui/terminal-buffer"
-import { App } from "./App"
-
-// Register ghostty-terminal component
-extend({ "ghostty-terminal": GhosttyTerminalRenderable })
-
-// Parse args
-const args = parseArgs(process.argv.slice(2))
-
-// Validate prerequisites
-await validatePrerequisites()
-
-// Render
-render(() => <App {...args} />, {
-  targetFps: 60,
-  exitOnCtrlC: false,
-  useMouse: true,
-})
-```
-
----
-
-## CLI Interface
-
-```
-Usage: ocloop [options]
-
-Options:
-  -p, --port <number>      Server port (opencode defaults: try 4096, then random)
-  -m, --model <string>     Model to use (passed to opencode)
-  --prompt <path>          Path to loop prompt file (default: .loop-prompt.md)
-  --plan <path>            Path to plan file (default: PLAN.md)
-  -h, --help               Show help
-
-Examples:
-  ocloop                           # Start with defaults
-  ocloop -m claude-sonnet-4        # Use specific model
-  ocloop --plan my-plan.md         # Use custom plan file
-```
-
----
-
-## Implementation Phases
-
-### Phase 1: Foundation
-
-- [x] **1.1** Initialize project structure
-  - Create `ocloop/` directory
-  - Set up `package.json` with dependencies
-  - Configure `tsconfig.json` for Solid.js + opentui
-  - Configure `bunfig.toml` with preload
-
-- [x] **1.2** Implement PLAN.md parser
-  - File: `src/lib/plan-parser.ts`
-  - Parse checkboxes, [MANUAL], [BLOCKED] items
-  - Return PlanProgress object
-  - Add tests
-
-- [x] **1.3** Implement server management hook
-  - File: `src/hooks/useServer.ts`
-  - Use `createOpencodeServer` from SDK
-  - Handle startup, ready, error states
-  - Cleanup on unmount
-
-### Phase 2: Core Loop Logic
-
-- [x] **2.1** Implement state machine hook
-  - File: `src/hooks/useLoopState.ts`
-  - Define all states and transitions
-  - Handle iteration counting
-  - Expose derived state helpers
-
-- [x] **2.2** Implement SSE subscription hook
-  - File: `src/hooks/useSSE.ts`
-  - Connect to `/event` endpoint
-  - Parse SSE events
-  - Handle reconnection
-  - Filter events by current session
-
-- [x] **2.3** Implement PTY management hook
-  - File: `src/hooks/usePTY.ts`
-  - Spawn `opencode attach` in PTY
-  - Feed output to ghostty-terminal ref
-  - Handle kill and resize
-  - Cleanup on unmount
-
-### Phase 3: UI Components
-
-- [x] **3.1** Implement StatusBar component
-  - File: `src/components/StatusBar.tsx`
-  - Display state, iteration, progress
-  - Context-sensitive keybinding hints
-  - Truncated current task display
-
-- [x] **3.2** Implement ProgressIndicator component
-  - File: `src/components/ProgressIndicator.tsx`
-  - Render progress bar with percentage
-  - Configurable width and colors
-
-- [x] **3.3** Implement TerminalPanel component
-  - File: `src/components/TerminalPanel.tsx`
-  - Wrap ghostty-terminal
-  - Apply dimming based on attach state
-  - Handle resize events
-
-- [x] **3.4** Implement QuitConfirmation component
-  - File: `src/components/QuitConfirmation.tsx`
-  - Modal overlay with "Quit OCLoop? [Y/N]" prompt
-  - Centered on screen
-  - Handles Y/N/Escape keys
-
-### Phase 4: Main Application
-
-- [x] **4.1** Implement main App component
-  - File: `src/App.tsx`
-  - Compose all hooks and components
-  - Set up input handler for keybindings
-  - Manage iteration lifecycle
-
-- [x] **4.2** Implement entry point
-  - File: `src/index.tsx`
-  - Parse CLI arguments
-  - Validate prerequisites (PLAN.md exists, etc.)
-  - Register ghostty-terminal component
-  - Render App
-
-- [x] **4.3** Implement API helpers
-  - File: `src/lib/api.ts`
-  - Wrap SDK client creation
-  - Session creation helper
-  - Prompt sending helper
-  - Abort helper
-
-### Phase 5: Polish and Edge Cases
-
-- [x] **5.1** Handle .PLAN_COMPLETE detection
-  - Check before each iteration
-  - Parse remaining MANUAL/BLOCKED tasks
-  - Display completion summary
-
-- [x] **5.2** Handle prompt file loading
-  - Check for `.loop-prompt.md` (error if missing)
-  - Support `--prompt` CLI flag for custom path
-
-- [x] **5.3** Handle terminal resize
-  - Resize PTY when terminal size changes
-  - Recalculate layout dimensions
-  - Update ghostty-terminal cols/rows
-
-- [x] **5.4** Handle error states
-  - Server startup failure
-  - SSE connection loss
-  - PTY crash
-  - API errors
-
-- [x] **5.5** Add graceful shutdown
-  - Abort current session if running
-  - Kill PTY
-  - Stop server
-  - Exit cleanly
-
-### Phase 6: Documentation and Packaging
-
-- [x] **6.1** Write README.md
-  - Installation instructions
-  - Usage examples
-  - Configuration options
-  - Troubleshooting
-
-- [x] **6.2** Create example files
-  - Example PLAN.md
-  - Example .loop-prompt.md
-
-- [x] **6.3** Set up npm publishing
-  - Configure package.json for publishing
-  - Add bin entry for CLI
-  - Test global installation
-
----
-
-## Testing Strategy
-
-### Unit Tests
-
-- PLAN.md parser
-- State machine transitions
-- Progress calculations
-
-### Integration Tests
-
-- Server startup/shutdown
-- SSE event handling
-- PTY spawn/kill lifecycle
-
-### Manual Testing
-
-- [MANUAL] Start OCLoop with a simple 3-task plan
-- [MANUAL] Verify iterations progress automatically
-- [MANUAL] Test pause/resume with Space
-- [MANUAL] Test attach/detach with Ctrl+\\
-- [MANUAL] Verify keybindings work in both modes
-- [MANUAL] Test quit with Q
-- [MANUAL] Verify .PLAN_COMPLETE stops the loop
-- [MANUAL] Test with [MANUAL] and [BLOCKED] tasks
-- [MANUAL] Verify progress bar accuracy
-- [MANUAL] Test terminal resize handling
-
----
-
-## Configuration Files
-
-### package.json
-
-```json
-{
-  "name": "ocloop",
-  "version": "0.1.0",
-  "type": "module",
-  "bin": {
-    "ocloop": "./dist/index.js"
-  },
-  "scripts": {
-    "dev": "bun run src/index.tsx",
-    "build": "bun build src/index.tsx --outdir dist --target bun",
-    "test": "bun test"
-  },
-  "dependencies": {
-    "@opentui/core": "latest",
-    "@opentui/solid": "latest",
-    "solid-js": "^1.8.0",
-    "ghostty-opentui": "latest",
-    "bun-pty": "latest",
-    "@opencode/sdk": "latest"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^5.0.0"
-  }
-}
-```
-
-### tsconfig.json
-
-```json
-{
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "preserve",
-    "jsxImportSource": "@opentui/solid",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "types": ["bun-types"]
-  },
-  "include": ["src/**/*"]
-}
-```
-
-### bunfig.toml
-
-```toml
-preload = ["@opentui/solid/preload"]
-```
-
----
-
-## Success Criteria
-
-1. **Functional loop**: OCLoop successfully executes tasks from PLAN.md iteratively
-2. **Visual feedback**: User can see opencode TUI at all times
-3. **Control**: User can pause, attach, detach, and quit at appropriate times
-4. **Progress tracking**: Status bar shows accurate iteration and plan progress
-5. **Clean completion**: Loop exits when .PLAN_COMPLETE is created
-6. **Knowledge persistence**: AGENTS.md and docs/ are updated across iterations
-7. **Session history**: All sessions are preserved for debugging
-
----
-
-## Future Enhancements (Post-v1)
-
-1. **Session switching without PTY restart**: Contribute API to opencode
-2. **Split view**: Show multiple past sessions side-by-side
-3. **Cost tracking**: Display cumulative token usage and cost
-4. **Time tracking**: Show elapsed time per iteration and total
-5. **Retry failed iterations**: Automatic retry with backoff
-6. **Custom keybindings**: Configurable via config file
-7. **Notification on completion**: Desktop notification when loop finishes
-8. **Remote server support**: Connect to opencode server on another machine
+## File Change Summary
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/themes/` | Create | Directory with 32 vendored theme JSONs |
+| `src/lib/themes/index.ts` | Create | Export all themes as record |
+| `src/lib/theme-resolver.ts` | Create | Theme color resolution logic |
+| `src/lib/loop-state.ts` | Create | Session persistence + gitignore utility |
+| `src/lib/plan-parser.ts` | Modify | Add `getCurrentTask()` function |
+| `src/context/ThemeContext.tsx` | Create | Theme provider + auto-detect |
+| `src/context/DialogContext.tsx` | Create | Stack-based dialog manager |
+| `src/ui/Dialog.tsx` | Create | Base dialog overlay component |
+| `src/hooks/useLoopStats.ts` | Create | Timing logic with pause awareness |
+| `src/components/Dashboard.tsx` | Create | New header component (4 rows) |
+| `src/components/DialogCompletion.tsx` | Create | Plan complete modal |
+| `src/components/DialogError.tsx` | Create | Error display modal |
+| `src/components/DialogResume.tsx` | Create | Resume prompt modal |
+| `src/components/TerminalPanel.tsx` | Modify | Add isActive prop, use theme |
+| `src/components/ProgressIndicator.tsx` | Modify | Use theme colors |
+| `src/components/QuitConfirmation.tsx` | Modify/Delete | Migrate to dialog system |
+| `src/components/StatusBar.tsx` | Delete | Replaced by Dashboard |
+| `src/components/ErrorDisplay.tsx` | Delete | Replaced by DialogError |
+| `src/components/index.ts` | Modify | Update exports |
+| `src/App.tsx` | Modify | Provider hierarchy, new layout, integrations |

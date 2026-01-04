@@ -13,8 +13,6 @@ Chronological tasks as checkboxes. Guidelines:
 - For tasks involving external dependencies/APIs, include a verification step
 - Prefix tasks requiring manual/human action with [MANUAL] (device testing, UI verification, external service setup)
 
-Use <!-- GROUP --> comments to indicate tasks that CAN be done together if the implementer chooses.
-
 ## Testing Notes
 Describe how to verify the implementation works (manual steps, existing test commands, etc.)
 

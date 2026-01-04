@@ -24,18 +24,21 @@ export type LoopState =
   | { type: "stopped" }
   | { type: "complete"; iterations: number; summary: CompletionSummary }
   | { type: "error"; source: ErrorSource; message: string; recoverable: boolean }
+  | { type: "debug"; attached: boolean; sessionId: string }
 
 /**
  * Actions that can be dispatched to the loop state machine
  */
 export type LoopAction =
   | { type: "server_ready" }
+  | { type: "server_ready_debug" }
   | { type: "start" }  // User initiates first iteration
   | { type: "toggle_attach" }
   | { type: "toggle_pause" }
   | { type: "quit" }
   | { type: "session_idle" }
   | { type: "iteration_started"; sessionId: string }
+  | { type: "new_session"; sessionId: string }
   | { type: "plan_complete"; summary: CompletionSummary }
   | { type: "error"; source: ErrorSource; message: string; recoverable: boolean }
   | { type: "retry" }
@@ -62,4 +65,5 @@ export interface CLIArgs {
   promptFile: string
   planFile: string
   run?: boolean  // Start iterations immediately without waiting for user input
+  debug?: boolean  // Enable debug/sandbox mode without plan file validation
 }

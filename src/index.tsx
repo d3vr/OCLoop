@@ -30,6 +30,7 @@ Options:
   -p, --port <number>      Server port (opencode defaults: try 4096, then random)
   -m, --model <string>     Model to use (passed to opencode)
   -r, --run                Start iterations immediately (default: wait for [S])
+  -d, --debug              Debug/sandbox mode (no plan file validation, manual sessions)
   --prompt <path>          Path to loop prompt file (default: ${DEFAULTS.PROMPT_FILE})
   --plan <path>            Path to plan file (default: ${DEFAULTS.PLAN_FILE})
   -h, --help               Show help
@@ -104,6 +105,11 @@ function parseArgs(argv: string[]): CLIArgs {
         args.run = true
         break
 
+      case "-d":
+      case "--debug":
+        args.debug = true
+        break
+
       default:
         // Unknown argument - ignore for now (could warn)
         break
@@ -117,6 +123,11 @@ function parseArgs(argv: string[]): CLIArgs {
  * Validate that required files exist before starting
  */
 async function validatePrerequisites(args: CLIArgs): Promise<void> {
+  // Skip validation in debug mode
+  if (args.debug) {
+    return
+  }
+
   // Check PLAN.md exists
   const planFile = Bun.file(args.planFile)
   const planExists = await planFile.exists()

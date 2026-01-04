@@ -184,6 +184,9 @@ function AppContent(props: AppProps) {
     if (state.type === "pausing" && state.sessionId) {
       return state.sessionId
     }
+    if (state.type === "debug" && state.sessionId) {
+      return state.sessionId
+    }
     return undefined
   })
 
@@ -225,7 +228,11 @@ function AppContent(props: AppProps) {
     handlers: {
       onSessionIdle: (eventSessionId) => {
         // Only handle if it's our current session
-        if (eventSessionId === sessionId()) {
+        const currentSession = sessionId()
+        const state = loop.state()
+        // Also check debug state's sessionId
+        const debugSessionId = state.type === "debug" ? state.sessionId : undefined
+        if (eventSessionId === currentSession || eventSessionId === debugSessionId) {
           loop.dispatch({ type: "session_idle" })
           // Kill PTY when session becomes idle
           pty.kill()
@@ -253,6 +260,10 @@ function AppContent(props: AppProps) {
    * Parse the plan file and update progress
    */
   async function refreshPlan(): Promise<void> {
+    // Skip in debug mode - no plan file required
+    if (props.debug) {
+      return
+    }
     try {
       const progress = await parsePlanFile(props.planFile || DEFAULTS.PLAN_FILE)
       setPlanProgress(progress)
@@ -266,6 +277,10 @@ function AppContent(props: AppProps) {
    * Refresh current task from plan file (fallback when SSE doesn't provide todo update)
    */
   async function refreshCurrentTask(): Promise<void> {
+    // Skip in debug mode - no plan file required
+    if (props.debug) {
+      return
+    }
     try {
       const task = await getCurrentTask(props.planFile || DEFAULTS.PLAN_FILE)
       if (task) {
@@ -404,6 +419,46 @@ function AppContent(props: AppProps) {
   }
 
   /**
+   * Create a new session in debug mode (no prompt sent)
+   * Just creates a session and spawns PTY for manual interaction
+   */
+  async function createDebugSession(): Promise<void> {
+    const url = server.url()
+    if (!url) {
+      console.error("Cannot create debug session: server not ready")
+      return
+    }
+
+    try {
+      // Create SDK client
+      const client = createOpencodeClient({ baseUrl: url })
+
+      // Create a new session
+      const result = await client.session.create({})
+
+      if (!result.response.ok || !result.data) {
+        throw new Error("Failed to create session")
+      }
+
+      const newSessionId = result.data.id
+
+      // Dispatch new_session to update debug state with session ID
+      loop.dispatch({ type: "new_session", sessionId: newSessionId })
+
+      // Spawn PTY for this session
+      pty.spawn(newSessionId)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      loop.dispatch({
+        type: "error",
+        source: "api",
+        message: `Failed to create debug session: ${errorMessage}`,
+        recoverable: true,
+      })
+    }
+  }
+
+  /**
    * Handle quit - abort session and cleanup gracefully
    */
   async function handleQuit(): Promise<void> {
@@ -445,8 +500,14 @@ function AppContent(props: AppProps) {
   // Server ready effect - transition to ready state and connect SSE
   createEffect(() => {
     if (server.status() === "ready" && loop.state().type === "starting") {
-      // Server is ready, transition to ready state (waiting for user to start)
-      loop.dispatch({ type: "server_ready" })
+      // Server is ready, transition to appropriate state
+      if (props.debug) {
+        // Debug mode - transition to debug state
+        loop.dispatch({ type: "server_ready_debug" })
+      } else {
+        // Normal mode - transition to ready state (waiting for user to start)
+        loop.dispatch({ type: "server_ready" })
+      }
 
       // Connect SSE
       sse.reconnect()
@@ -461,11 +522,18 @@ function AppContent(props: AppProps) {
 
   /**
    * Initialize session persistence on startup
-   * - Ensures .loop-state.json is in .gitignore
+   * - In debug mode: creates a debug session immediately
+   * - In normal mode: ensures .loop-state.json is in .gitignore
    * - Loads any existing persisted state
    * - Shows resume dialog if previous state exists
    */
   async function initializeSession(): Promise<void> {
+    // In debug mode, create a session immediately and return
+    if (props.debug) {
+      await createDebugSession()
+      return
+    }
+
     try {
       // Ensure .loop-state.json is in .gitignore
       await ensureGitignore()
@@ -672,6 +740,31 @@ function AppContent(props: AppProps) {
           return true
         }
         // Consume all other input while dialog is shown
+        return true
+      }
+
+      // Debug mode handling
+      if (loop.isDebug()) {
+        // If attached, forward everything to PTY
+        if (loop.isAttached()) {
+          pty.write(sequence)
+          return true
+        }
+        
+        // Detached in debug mode - handle our keybindings
+        if (sequence === KEYS.N_LOWER || sequence === KEYS.N_UPPER) {
+          // N - create new session
+          createDebugSession()
+          return true
+        }
+        
+        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
+          // Q - show quit confirmation
+          loop.showQuitConfirmation()
+          return true
+        }
+        
+        // Consume other input in debug mode when detached
         return true
       }
 

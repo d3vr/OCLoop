@@ -15,6 +15,7 @@ export interface UseLoopStateReturn {
   isPaused: () => boolean
   isPausing: () => boolean
   isError: () => boolean
+  isDebug: () => boolean
   canStart: () => boolean
   canPause: () => boolean
   canQuit: () => boolean
@@ -37,6 +38,22 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
       // Only transition from starting to ready (waiting for user to start)
       if (state.type === "starting") {
         return { type: "ready" }
+      }
+      return state
+    }
+
+    case "server_ready_debug": {
+      // Transition from starting to debug mode
+      if (state.type === "starting") {
+        return { type: "debug", attached: false, sessionId: "" }
+      }
+      return state
+    }
+
+    case "new_session": {
+      // Set session ID in debug mode
+      if (state.type === "debug") {
+        return { type: "debug", attached: true, sessionId: action.sessionId }
       }
       return state
     }
@@ -72,7 +89,7 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
     }
 
     case "toggle_attach": {
-      // Toggle attach/detach in running or paused states
+      // Toggle attach/detach in running, paused, or debug states
       if (state.type === "running") {
         return {
           type: "running",
@@ -86,6 +103,13 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
           type: "paused",
           attached: !state.attached,
           iteration: state.iteration,
+        }
+      }
+      if (state.type === "debug" && state.sessionId) {
+        return {
+          type: "debug",
+          attached: !state.attached,
+          sessionId: state.sessionId,
         }
       }
       return state
@@ -132,6 +156,14 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
           iteration: state.iteration,
         }
       }
+      if (state.type === "debug") {
+        // In debug mode, clear sessionId and stay in debug (ready for new session)
+        return {
+          type: "debug",
+          attached: false,
+          sessionId: "",
+        }
+      }
       return state
     }
 
@@ -141,7 +173,8 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
         state.type === "ready" ||
         state.type === "running" ||
         state.type === "paused" ||
-        state.type === "pausing"
+        state.type === "pausing" ||
+        state.type === "debug"
       ) {
         return { type: "stopping" }
       }
@@ -166,7 +199,8 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
         state.type === "ready" ||
         state.type === "running" ||
         state.type === "pausing" ||
-        state.type === "paused"
+        state.type === "paused" ||
+        state.type === "debug"
       ) {
         return {
           type: "error",
@@ -229,6 +263,7 @@ export function useLoopState(): UseLoopStateReturn {
     const s = state()
     if (s.type === "running") return s.attached
     if (s.type === "paused") return s.attached
+    if (s.type === "debug") return s.attached
     return false
   })
 
@@ -253,6 +288,10 @@ export function useLoopState(): UseLoopStateReturn {
     return state().type === "error"
   })
 
+  const isDebug = createMemo(() => {
+    return state().type === "debug"
+  })
+
   const canPause = createMemo(() => {
     const s = state()
     // Can only pause when running and detached
@@ -273,6 +312,8 @@ export function useLoopState(): UseLoopStateReturn {
     // Can quit when detached in running or paused states
     if (s.type === "running" && !s.attached) return true
     if (s.type === "paused" && !s.attached) return true
+    // Can quit from debug state when detached
+    if (s.type === "debug" && !s.attached) return true
     // Can quit from error state
     if (s.type === "error") return true
     return false
@@ -317,6 +358,7 @@ export function useLoopState(): UseLoopStateReturn {
     isPaused,
     isPausing,
     isError,
+    isDebug,
     canStart,
     canPause,
     canQuit,

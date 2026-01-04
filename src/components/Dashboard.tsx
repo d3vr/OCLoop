@@ -40,6 +40,8 @@ function getStateBadge(state: LoopState): { icon: string; text: string; colorKey
       return { icon: "✓", text: "COMPLETE", colorKey: "success" }
     case "error":
       return { icon: "!", text: "ERROR", colorKey: "error" }
+    case "debug":
+      return { icon: "⚙", text: "DEBUG", colorKey: "info" }
     default:
       return { icon: "?", text: "UNKNOWN", colorKey: "info" }
   }
@@ -81,6 +83,7 @@ export function Dashboard(props: DashboardProps) {
     if (state.type === "pausing") return state.iteration
     if (state.type === "paused") return state.iteration
     if (state.type === "complete") return state.iterations
+    if (state.type === "debug") return 0
     return 0
   })
 
@@ -150,13 +153,45 @@ export function Dashboard(props: DashboardProps) {
           ]
         }
         return [{ key: "Q", desc: "quit" }]
+      case "debug":
+        if (attached) {
+          return [{ key: "Ctrl+\\", desc: "detach" }]
+        }
+        // Detached in debug mode
+        if (state.sessionId) {
+          return [
+            { key: "Ctrl+\\", desc: "attach" },
+            { key: "N", desc: "new session" },
+            { key: "Q", desc: "quit" },
+          ]
+        }
+        // No active session
+        return [
+          { key: "N", desc: "new session" },
+          { key: "Q", desc: "quit" },
+        ]
       default:
         return []
     }
   })
 
   // Truncate current task if needed (rough estimate for terminal width)
+  // In debug mode, show the session ID instead
   const truncatedTask = createMemo(() => {
+    const state = props.state
+    
+    // In debug mode, show session ID if available
+    if (state.type === "debug") {
+      if (state.sessionId) {
+        // Truncate session ID if too long
+        const maxLen = 20
+        const sessionId = state.sessionId
+        if (sessionId.length <= maxLen) return `Session: ${sessionId}`
+        return `Session: ${sessionId.substring(0, maxLen - 3)}...`
+      }
+      return null
+    }
+    
     const task = props.currentTask
     if (!task) return null
     const maxLen = 60 // Reasonable default, could be dynamic
@@ -199,8 +234,8 @@ export function Dashboard(props: DashboardProps) {
           </text>
         </Show>
 
-        {/* Plan progress */}
-        <Show when={props.progress}>
+        {/* Plan progress - hide in debug mode */}
+        <Show when={props.progress && props.state.type !== "debug"}>
           <text style={{ marginLeft: 2 }}>
             <span style={{ fg: theme().textMuted }}>Tasks</span>
             <span style={{ fg: theme().primary }}> {progressText()}</span>

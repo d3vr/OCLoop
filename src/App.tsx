@@ -21,13 +21,22 @@ import { usePTY } from "./hooks/usePTY"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
 import { shutdownManager } from "./lib/shutdown"
+import {
+  loadLoopState,
+  saveLoopState,
+  deleteLoopState,
+  ensureGitignore,
+  createLoopState,
+  type LoopStateFile,
+} from "./lib/loop-state"
 import { ThemeProvider } from "./context/ThemeContext"
-import { DialogProvider, DialogStack } from "./context/DialogContext"
+import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
 import {
   StatusBar,
   TerminalPanel,
   QuitConfirmation,
   ErrorDisplay,
+  DialogResume,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
@@ -77,6 +86,7 @@ export function App(props: AppProps) {
 function AppContent(props: AppProps) {
   const renderer = useRenderer()
   const dimensions = useTerminalDimensions()
+  const dialog = useDialog()
 
   // Terminal ref for ghostty-terminal
   const terminalRef: { current: GhosttyTerminalRenderable | null } = {
@@ -94,6 +104,13 @@ function AppContent(props: AppProps) {
 
   // Loop timing statistics
   const stats = useLoopStats()
+
+  // Persisted loop state (loaded on startup)
+  const [persistedState, setPersistedState] = createSignal<LoopStateFile | null>(null)
+  const [showingResumeDialog, setShowingResumeDialog] = createSignal(false)
+
+  // Track if we've initialized (to prevent double initialization)
+  let sessionInitialized = false
 
   // Track previous state for detecting transitions
   let prevState: LoopState | null = null
@@ -138,6 +155,11 @@ function AppContent(props: AppProps) {
       (state.type === "paused" && prev.type === "pausing")
     ) {
       stats.endIteration()
+      
+      // Save state after iteration completes
+      const iterationCount = state.type === "running" ? state.iteration : 
+        state.type === "paused" ? state.iteration : 0
+      persistLoopState(iterationCount)
     }
   })
 
@@ -236,6 +258,36 @@ function AppContent(props: AppProps) {
   }
 
   /**
+   * Save loop state to disk after each iteration
+   * Creates new state if none exists, otherwise updates existing
+   */
+  async function persistLoopState(iteration: number): Promise<void> {
+    try {
+      const existing = persistedState()
+      const history = stats.getHistory()
+      
+      if (existing) {
+        // Update existing state
+        await saveLoopState({
+          ...existing,
+          iteration,
+          iterationHistory: history,
+        })
+      } else {
+        // Create new state
+        const newState = createLoopState()
+        newState.iteration = iteration
+        newState.iterationHistory = history
+        await saveLoopState(newState)
+        setPersistedState(newState)
+      }
+    } catch (err) {
+      // Log error but don't interrupt the loop
+      console.error("Failed to save loop state:", err)
+    }
+  }
+
+  /**
    * Check if .PLAN_COMPLETE file exists
    */
   async function checkPlanComplete(): Promise<boolean> {
@@ -271,6 +323,10 @@ function AppContent(props: AppProps) {
         manualTasks: [...new Set([...summary.manualTasks, ...completeSummary.manualTasks])],
         blockedTasks: [...new Set([...summary.blockedTasks, ...completeSummary.blockedTasks])],
       }
+      
+      // Delete persisted loop state on completion
+      await deleteLoopState()
+      setPersistedState(null)
       
       loop.dispatch({ type: "plan_complete", summary })
       return
@@ -332,6 +388,12 @@ function AppContent(props: AppProps) {
    * Handle quit - abort session and cleanup gracefully
    */
   async function handleQuit(): Promise<void> {
+    // Save state before quitting so user can resume
+    const iteration = loop.iteration()
+    if (iteration > 0) {
+      await persistLoopState(iteration)
+    }
+    
     loop.dispatch({ type: "quit" })
 
     // Abort current session if running
@@ -370,13 +432,96 @@ function AppContent(props: AppProps) {
       // Connect SSE
       sse.reconnect()
 
-      // If --run flag is set, start immediately
+      // Initialize session persistence (only once)
+      if (!sessionInitialized) {
+        sessionInitialized = true
+        initializeSession()
+      }
+    }
+  })
+
+  /**
+   * Initialize session persistence on startup
+   * - Ensures .loop-state.json is in .gitignore
+   * - Loads any existing persisted state
+   * - Shows resume dialog if previous state exists
+   */
+  async function initializeSession(): Promise<void> {
+    try {
+      // Ensure .loop-state.json is in .gitignore
+      await ensureGitignore()
+
+      // Load any persisted state from previous run
+      const loadedState = await loadLoopState()
+
+      if (loadedState) {
+        // Previous state found - show resume dialog
+        setPersistedState(loadedState)
+        setShowingResumeDialog(true)
+        dialog.show(() => (
+          <DialogResume
+            iteration={loadedState.iteration}
+            onResume={handleResume}
+            onStartFresh={handleStartFresh}
+          />
+        ))
+      } else if (props.run) {
+        // No previous state and --run flag set, start immediately
+        loop.dispatch({ type: "start" })
+        startIteration()
+      }
+    } catch (err) {
+      // Log error but don't block startup
+      console.error("Failed to initialize session persistence:", err)
+      
+      // If --run flag set, start anyway
       if (props.run) {
         loop.dispatch({ type: "start" })
         startIteration()
       }
     }
-  })
+  }
+
+  /**
+   * Handle resume from previous session
+   * - Load history into stats
+   * - Set iteration count in state machine (via resuming with proper iteration)
+   */
+  function handleResume(): void {
+    const loaded = persistedState()
+    if (!loaded) return
+
+    // Load history into stats
+    stats.loadFromState(loaded)
+
+    // Clear the dialog
+    dialog.clear()
+    setShowingResumeDialog(false)
+
+    // Start running from the loaded iteration
+    // We dispatch start to transition to running state, then the iteration
+    // count will be maintained by iterating from the current position
+    loop.dispatch({ type: "start" })
+    
+    // Start the next iteration (iteration count will increment)
+    startIteration()
+  }
+
+  /**
+   * Handle start fresh - delete previous state and start new
+   */
+  async function handleStartFresh(): Promise<void> {
+    // Delete the old state file
+    await deleteLoopState()
+    setPersistedState(null)
+
+    // Clear the dialog
+    dialog.clear()
+    setShowingResumeDialog(false)
+
+    // If --run flag is set or user chose to start fresh, we can prompt to start
+    // The user will need to press S to start (consistent with normal startup)
+  }
 
   // Server error effect - transition to error state
   createEffect(() => {
@@ -447,6 +592,27 @@ function AppContent(props: AppProps) {
           return true
         }
         // Consume all other input while modal is shown
+        return true
+      }
+
+      // If showing resume dialog
+      if (showingResumeDialog()) {
+        if (
+          sequence === KEYS.Y_LOWER ||
+          sequence === KEYS.Y_UPPER
+        ) {
+          handleResume()
+          return true
+        }
+        if (
+          sequence === KEYS.N_LOWER ||
+          sequence === KEYS.N_UPPER ||
+          sequence === KEYS.ESCAPE
+        ) {
+          handleStartFresh()
+          return true
+        }
+        // Consume all other input while dialog is shown
         return true
       }
 

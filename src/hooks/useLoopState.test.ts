@@ -16,7 +16,6 @@ describe("loopReducer", () => {
     it("should not change state if already running", () => {
       const state: LoopState = {
         type: "running",
-        attached: true,
         iteration: 5,
         sessionId: "test-session",
       }
@@ -29,7 +28,7 @@ describe("loopReducer", () => {
   })
 
   describe("start action", () => {
-    it("should transition from ready to running (detached)", () => {
+    it("should transition from ready to running", () => {
       const state: LoopState = { type: "ready" }
       const action: LoopAction = { type: "start" }
 
@@ -37,7 +36,6 @@ describe("loopReducer", () => {
 
       expect(result.type).toBe("running")
       if (result.type === "running") {
-        expect(result.attached).toBe(false)
         expect(result.iteration).toBe(0)
         expect(result.sessionId).toBe("")
       }
@@ -46,7 +44,6 @@ describe("loopReducer", () => {
     it("should not change state if not in ready state", () => {
       const state: LoopState = {
         type: "running",
-        attached: true,
         iteration: 5,
         sessionId: "test-session",
       }
@@ -60,7 +57,6 @@ describe("loopReducer", () => {
     it("should not change state if in paused state", () => {
       const state: LoopState = {
         type: "paused",
-        attached: false,
         iteration: 2,
       }
       const action: LoopAction = { type: "start" }
@@ -75,7 +71,6 @@ describe("loopReducer", () => {
     it("should increment iteration and set sessionId when running", () => {
       const state: LoopState = {
         type: "running",
-        attached: false,
         iteration: 2,
         sessionId: "",
       }
@@ -90,33 +85,12 @@ describe("loopReducer", () => {
       if (result.type === "running") {
         expect(result.iteration).toBe(3)
         expect(result.sessionId).toBe("new-session-123")
-        expect(result.attached).toBe(false)
-      }
-    })
-
-    it("should preserve attached state when starting iteration", () => {
-      const state: LoopState = {
-        type: "running",
-        attached: true,
-        iteration: 1,
-        sessionId: "",
-      }
-      const action: LoopAction = {
-        type: "iteration_started",
-        sessionId: "session-456",
-      }
-
-      const result = loopReducer(state, action)
-
-      if (result.type === "running") {
-        expect(result.attached).toBe(true)
       }
     })
 
     it("should transition from paused to running when resuming", () => {
       const state: LoopState = {
         type: "paused",
-        attached: false,
         iteration: 3,
       }
       const action: LoopAction = {
@@ -130,103 +104,14 @@ describe("loopReducer", () => {
       if (result.type === "running") {
         expect(result.iteration).toBe(4)
         expect(result.sessionId).toBe("resume-session")
-        expect(result.attached).toBe(false)
       }
-    })
-  })
-
-  describe("toggle_attach action", () => {
-    it("should toggle attached state when running", () => {
-      const state: LoopState = {
-        type: "running",
-        attached: false,
-        iteration: 1,
-        sessionId: "session",
-      }
-      const action: LoopAction = { type: "toggle_attach" }
-
-      const result = loopReducer(state, action)
-
-      expect(result.type).toBe("running")
-      if (result.type === "running") {
-        expect(result.attached).toBe(true)
-      }
-    })
-
-    it("should toggle back to detached when attached", () => {
-      const state: LoopState = {
-        type: "running",
-        attached: true,
-        iteration: 1,
-        sessionId: "session",
-      }
-      const action: LoopAction = { type: "toggle_attach" }
-
-      const result = loopReducer(state, action)
-
-      expect(result.type).toBe("running")
-      if (result.type === "running") {
-        expect(result.attached).toBe(false)
-      }
-    })
-
-    it("should toggle attached state when paused", () => {
-      const state: LoopState = {
-        type: "paused",
-        attached: false,
-        iteration: 2,
-      }
-      const action: LoopAction = { type: "toggle_attach" }
-
-      const result = loopReducer(state, action)
-
-      expect(result.type).toBe("paused")
-      if (result.type === "paused") {
-        expect(result.attached).toBe(true)
-      }
-    })
-
-    it("should preserve other state properties when toggling", () => {
-      const state: LoopState = {
-        type: "running",
-        attached: false,
-        iteration: 5,
-        sessionId: "my-session",
-      }
-      const action: LoopAction = { type: "toggle_attach" }
-
-      const result = loopReducer(state, action)
-
-      if (result.type === "running") {
-        expect(result.iteration).toBe(5)
-        expect(result.sessionId).toBe("my-session")
-      }
-    })
-
-    it("should not change state when starting", () => {
-      const state: LoopState = { type: "starting" }
-      const action: LoopAction = { type: "toggle_attach" }
-
-      const result = loopReducer(state, action)
-
-      expect(result).toEqual(state)
-    })
-
-    it("should not change state when ready", () => {
-      const state: LoopState = { type: "ready" }
-      const action: LoopAction = { type: "toggle_attach" }
-
-      const result = loopReducer(state, action)
-
-      expect(result).toEqual(state)
     })
   })
 
   describe("toggle_pause action", () => {
-    it("should transition from running (detached) to pausing", () => {
+    it("should transition from running to pausing", () => {
       const state: LoopState = {
         type: "running",
-        attached: false,
         iteration: 3,
         sessionId: "session-123",
       }
@@ -241,24 +126,9 @@ describe("loopReducer", () => {
       }
     })
 
-    it("should not pause when attached", () => {
-      const state: LoopState = {
-        type: "running",
-        attached: true,
-        iteration: 3,
-        sessionId: "session-123",
-      }
-      const action: LoopAction = { type: "toggle_pause" }
-
-      const result = loopReducer(state, action)
-
-      expect(result).toEqual(state)
-    })
-
-    it("should resume from paused (detached) to running", () => {
+    it("should resume from paused to running", () => {
       const state: LoopState = {
         type: "paused",
-        attached: false,
         iteration: 5,
       }
       const action: LoopAction = { type: "toggle_pause" }
@@ -268,22 +138,8 @@ describe("loopReducer", () => {
       expect(result.type).toBe("running")
       if (result.type === "running") {
         expect(result.iteration).toBe(5)
-        expect(result.attached).toBe(false)
         expect(result.sessionId).toBe("")
       }
-    })
-
-    it("should not resume when paused and attached", () => {
-      const state: LoopState = {
-        type: "paused",
-        attached: true,
-        iteration: 5,
-      }
-      const action: LoopAction = { type: "toggle_pause" }
-
-      const result = loopReducer(state, action)
-
-      expect(result).toEqual(state)
     })
   })
 
@@ -291,7 +147,6 @@ describe("loopReducer", () => {
     it("should reset sessionId when running", () => {
       const state: LoopState = {
         type: "running",
-        attached: true,
         iteration: 3,
         sessionId: "completed-session",
       }
@@ -303,7 +158,6 @@ describe("loopReducer", () => {
       if (result.type === "running") {
         expect(result.sessionId).toBe("")
         expect(result.iteration).toBe(3)
-        expect(result.attached).toBe(false)
       }
     })
 
@@ -320,7 +174,6 @@ describe("loopReducer", () => {
       expect(result.type).toBe("paused")
       if (result.type === "paused") {
         expect(result.iteration).toBe(4)
-        expect(result.attached).toBe(false)
       }
     })
   })
@@ -329,7 +182,6 @@ describe("loopReducer", () => {
     it("should transition from running to stopping", () => {
       const state: LoopState = {
         type: "running",
-        attached: false,
         iteration: 2,
         sessionId: "session",
       }
@@ -343,7 +195,6 @@ describe("loopReducer", () => {
     it("should transition from paused to stopping", () => {
       const state: LoopState = {
         type: "paused",
-        attached: false,
         iteration: 3,
       }
       const action: LoopAction = { type: "quit" }
@@ -389,7 +240,6 @@ describe("loopReducer", () => {
     it("should transition from running to complete with summary", () => {
       const state: LoopState = {
         type: "running",
-        attached: false,
         iteration: 10,
         sessionId: "session",
       }
@@ -411,7 +261,6 @@ describe("loopReducer", () => {
     it("should transition from paused to complete with summary", () => {
       const state: LoopState = {
         type: "paused",
-        attached: false,
         iteration: 7,
       }
       const action: LoopAction = {
@@ -488,7 +337,6 @@ describe("loopReducer", () => {
     it("should transition from running to error", () => {
       const state: LoopState = {
         type: "running",
-        attached: false,
         iteration: 3,
         sessionId: "session",
       }
@@ -512,7 +360,6 @@ describe("loopReducer", () => {
     it("should transition from paused to error", () => {
       const state: LoopState = {
         type: "paused",
-        attached: false,
         iteration: 2,
       }
       const action: LoopAction = {
@@ -601,7 +448,6 @@ describe("loopReducer", () => {
     it("should not change state when not in error state", () => {
       const state: LoopState = {
         type: "running",
-        attached: false,
         iteration: 1,
         sessionId: "session",
       }
@@ -678,39 +524,6 @@ describe("loopReducer", () => {
         expect(state.iterations).toBe(3)
         expect(state.summary).toEqual({ manualTasks: [], blockedTasks: [] })
       }
-    })
-
-    it("should handle attach/detach cycle while running", () => {
-      let state: LoopState = {
-        type: "running",
-        attached: false,
-        iteration: 1,
-        sessionId: "session",
-      }
-
-      // Attach
-      state = loopReducer(state, { type: "toggle_attach" })
-      expect(state.type).toBe("running")
-      if (state.type === "running") {
-        expect(state.attached).toBe(true)
-      }
-
-      // Cannot pause while attached
-      state = loopReducer(state, { type: "toggle_pause" })
-      expect(state.type).toBe("running")
-      if (state.type === "running") {
-        expect(state.attached).toBe(true)
-      }
-
-      // Detach
-      state = loopReducer(state, { type: "toggle_attach" })
-      if (state.type === "running") {
-        expect(state.attached).toBe(false)
-      }
-
-      // Now can pause
-      state = loopReducer(state, { type: "toggle_pause" })
-      expect(state.type).toBe("pausing")
     })
   })
 })

@@ -9,7 +9,6 @@ export interface UseLoopStateReturn {
   dispatch: (action: LoopAction) => void
 
   // Derived state
-  isAttached: () => boolean
   isReady: () => boolean
   isRunning: () => boolean
   isPaused: () => boolean
@@ -45,7 +44,7 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
     case "server_ready_debug": {
       // Transition from starting to debug mode
       if (state.type === "starting") {
-        return { type: "debug", attached: false, sessionId: "" }
+        return { type: "debug", sessionId: "" }
       }
       return state
     }
@@ -53,7 +52,7 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
     case "new_session": {
       // Set session ID in debug mode
       if (state.type === "debug") {
-        return { type: "debug", attached: true, sessionId: action.sessionId }
+        return { type: "debug", sessionId: action.sessionId }
       }
       return state
     }
@@ -61,7 +60,7 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
     case "start": {
       // User initiates iterations from ready state
       if (state.type === "ready") {
-        return { type: "running", attached: false, iteration: 0, sessionId: "" }
+        return { type: "running", iteration: 0, sessionId: "" }
       }
       return state
     }
@@ -71,7 +70,6 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
       if (state.type === "running") {
         return {
           type: "running",
-          attached: state.attached,
           iteration: state.iteration + 1,
           sessionId: action.sessionId,
         }
@@ -80,7 +78,6 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
       if (state.type === "paused") {
         return {
           type: "running",
-          attached: false,
           iteration: state.iteration + 1,
           sessionId: action.sessionId,
         }
@@ -88,36 +85,9 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
       return state
     }
 
-    case "toggle_attach": {
-      // Toggle attach/detach in running, paused, or debug states
-      if (state.type === "running") {
-        return {
-          type: "running",
-          attached: !state.attached,
-          iteration: state.iteration,
-          sessionId: state.sessionId,
-        }
-      }
-      if (state.type === "paused") {
-        return {
-          type: "paused",
-          attached: !state.attached,
-          iteration: state.iteration,
-        }
-      }
-      if (state.type === "debug" && state.sessionId) {
-        return {
-          type: "debug",
-          attached: !state.attached,
-          sessionId: state.sessionId,
-        }
-      }
-      return state
-    }
-
     case "toggle_pause": {
-      // Only allow pause toggle when detached
-      if (state.type === "running" && !state.attached) {
+      // Toggle pause/resume
+      if (state.type === "running") {
         // Transition to pausing - will complete when session becomes idle
         return {
           type: "pausing",
@@ -125,11 +95,10 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
           sessionId: state.sessionId,
         }
       }
-      if (state.type === "paused" && !state.attached) {
+      if (state.type === "paused") {
         // Resume - will need iteration_started to set sessionId
         return {
           type: "running",
-          attached: false,
           iteration: state.iteration,
           sessionId: "",
         }
@@ -143,7 +112,6 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
         // Stay in running with empty sessionId, ready for next iteration
         return {
           type: "running",
-          attached: false,
           iteration: state.iteration,
           sessionId: "",
         }
@@ -152,7 +120,6 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
         // Complete the pause transition
         return {
           type: "paused",
-          attached: false,
           iteration: state.iteration,
         }
       }
@@ -160,7 +127,6 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
         // In debug mode, clear sessionId and stay in debug (ready for new session)
         return {
           type: "debug",
-          attached: false,
           sessionId: "",
         }
       }
@@ -259,14 +225,6 @@ export function useLoopState(): UseLoopStateReturn {
   }
 
   // Derived state helpers using memos for efficiency
-  const isAttached = createMemo(() => {
-    const s = state()
-    if (s.type === "running") return s.attached
-    if (s.type === "paused") return s.attached
-    if (s.type === "debug") return s.attached
-    return false
-  })
-
   const isReady = createMemo(() => {
     return state().type === "ready"
   })
@@ -294,10 +252,10 @@ export function useLoopState(): UseLoopStateReturn {
 
   const canPause = createMemo(() => {
     const s = state()
-    // Can only pause when running and detached
-    if (s.type === "running" && !s.attached) return true
-    // Can resume when paused and detached
-    if (s.type === "paused" && !s.attached) return true
+    // Can pause when running
+    if (s.type === "running") return true
+    // Can resume when paused
+    if (s.type === "paused") return true
     return false
   })
 
@@ -309,11 +267,11 @@ export function useLoopState(): UseLoopStateReturn {
     const s = state()
     // Can quit from ready state (before iterations start)
     if (s.type === "ready") return true
-    // Can quit when detached in running or paused states
-    if (s.type === "running" && !s.attached) return true
-    if (s.type === "paused" && !s.attached) return true
-    // Can quit from debug state when detached
-    if (s.type === "debug" && !s.attached) return true
+    // Can quit from running or paused states
+    if (s.type === "running") return true
+    if (s.type === "paused") return true
+    // Can quit from debug state
+    if (s.type === "debug") return true
     // Can quit from error state
     if (s.type === "error") return true
     return false
@@ -352,7 +310,6 @@ export function useLoopState(): UseLoopStateReturn {
   return {
     state,
     dispatch,
-    isAttached,
     isReady,
     isRunning,
     isPaused,

@@ -17,14 +17,14 @@ export type ErrorSource = "server" | "sse" | "pty" | "api" | "plan"
 export type LoopState =
   | { type: "starting" }
   | { type: "ready" }  // Server ready, waiting for user to start iterations
-  | { type: "running"; attached: boolean; iteration: number; sessionId: string }
+  | { type: "running"; iteration: number; sessionId: string }
   | { type: "pausing"; iteration: number; sessionId: string }
-  | { type: "paused"; attached: boolean; iteration: number }
+  | { type: "paused"; iteration: number }
   | { type: "stopping" }
   | { type: "stopped" }
   | { type: "complete"; iterations: number; summary: CompletionSummary }
   | { type: "error"; source: ErrorSource; message: string; recoverable: boolean }
-  | { type: "debug"; attached: boolean; sessionId: string }
+  | { type: "debug"; sessionId: string }
 
 /**
  * Actions that can be dispatched to the loop state machine
@@ -33,7 +33,6 @@ export type LoopAction =
   | { type: "server_ready" }
   | { type: "server_ready_debug" }
   | { type: "start" }  // User initiates first iteration
-  | { type: "toggle_attach" }
   | { type: "toggle_pause" }
   | { type: "quit" }
   | { type: "session_idle" }

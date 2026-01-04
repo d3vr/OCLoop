@@ -269,14 +269,14 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
   - On iteration complete: Call `saveLoopState()` with updated data
   - On plan complete: Call `deleteLoopState()`
 
-- [ ] **Integrate current task detection**
+- [x] **Integrate current task detection**
   - Modify `src/App.tsx`
   - Track `currentTask` signal
   - Primary source: SSE `onTodoUpdated` with `status: "in_progress"`
   - Fallback: On `iteration_started` and `onFileEdited` for PLAN.md, call `getCurrentTask()`
   - Pass to Dashboard component
 
-- [ ] **Implement new layout structure**
+- [x] **Implement new layout structure**
   - Modify `src/App.tsx`
   - Remove `STATUS_BAR_HEIGHT` constant
   - New layout:

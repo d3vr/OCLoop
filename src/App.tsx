@@ -32,17 +32,16 @@ import {
 import { ThemeProvider } from "./context/ThemeContext"
 import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
 import {
-  StatusBar,
+  Dashboard,
   TerminalPanel,
   QuitConfirmation,
-  ErrorDisplay,
   DialogResume,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
 // UI layout constants
-// Status bar takes 3 lines: status line + keybindings + current task (optional)
-const STATUS_BAR_HEIGHT = 3
+// Dashboard fixed at 6 rows (4 content rows + 2 for border)
+const DASHBOARD_HEIGHT = 6
 // Terminal panel has 2 lines for borders
 const TERMINAL_BORDER_HEIGHT = 2
 
@@ -193,8 +192,8 @@ function AppContent(props: AppProps) {
   })
 
   const terminalRows = createMemo(() => {
-    // Full height minus status bar and terminal border
-    return Math.max(10, dimensions().height - STATUS_BAR_HEIGHT - TERMINAL_BORDER_HEIGHT)
+    // Full height minus dashboard and terminal border
+    return Math.max(10, dimensions().height - DASHBOARD_HEIGHT - TERMINAL_BORDER_HEIGHT)
   })
 
   // PTY management
@@ -212,7 +211,7 @@ function AppContent(props: AppProps) {
   // Handle PTY resize when terminal dimensions change
   onResize((width, height) => {
     const newCols = Math.max(40, width - TERMINAL_BORDER_HEIGHT)
-    const newRows = Math.max(10, height - STATUS_BAR_HEIGHT - TERMINAL_BORDER_HEIGHT)
+    const newRows = Math.max(10, height - DASHBOARD_HEIGHT - TERMINAL_BORDER_HEIGHT)
     pty.resize(newCols, newRows)
   })
 
@@ -739,34 +738,25 @@ function AppContent(props: AppProps) {
 
   return (
     <box style={{ flexDirection: "column", flexGrow: 1 }}>
-      {/* Status bar at the top */}
-      <StatusBar
-        state={loop.state}
-        planProgress={planProgress}
-        currentTask={currentTask}
-        isAttached={loop.isAttached}
+      {/* Dashboard at the top */}
+      <Dashboard
+        isActive={!loop.isAttached()}
+        state={loop.state()}
+        progress={planProgress()}
+        stats={stats}
+        currentTask={currentTask() ?? null}
+        isAttached={loop.isAttached()}
       />
 
-      {/* Show error display in error state, otherwise show terminal */}
-      {loop.isError() && errorDetails() ? (
-        <ErrorDisplay
-          source={errorDetails()!.source}
-          message={errorDetails()!.message}
-          recoverable={errorDetails()!.recoverable}
-          onRetry={handleRetry}
-          onQuit={() => process.exit(1)}
-        />
-      ) : (
-        /* Terminal panel takes remaining space */
-        <TerminalPanel
-          terminalRef={(el) => {
-            terminalRef.current = el
-          }}
-          cols={terminalCols()}
-          rows={terminalRows()}
-          isActive={loop.isAttached()}
-        />
-      )}
+      {/* Terminal panel takes remaining space */}
+      <TerminalPanel
+        terminalRef={(el) => {
+          terminalRef.current = el
+        }}
+        cols={terminalCols()}
+        rows={terminalRows()}
+        isActive={loop.isAttached()}
+      />
 
       {/* Quit confirmation modal (overlay) */}
       <QuitConfirmation

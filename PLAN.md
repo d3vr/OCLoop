@@ -19,7 +19,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
 
 ### Phase 1: Infrastructure
 
-- [ ] **Vendor OpenCode theme definitions**
+- [x] **Vendor OpenCode theme definitions**
   - Create directory `src/lib/themes/`
   - Copy all 32 theme JSON files from `../opencode/packages/opencode/src/cli/cmd/tui/context/theme/`:
     - `aura.json`, `ayu.json`, `catppuccin.json`, `catppuccin-frappe.json`, `catppuccin-macchiato.json`

@@ -258,7 +258,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - On `toggle_pause` (resume): Call `stats.resume()`
     - On `session_idle`: Call `stats.endIteration()`, update persisted state
 
-- [ ] **Integrate session persistence into App**
+- [x] **Integrate session persistence into App**
   - Modify `src/App.tsx`
   - On startup (after server ready):
     - Call `ensureGitignore()`

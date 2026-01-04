@@ -300,7 +300,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     ```
   - Calculate terminal rows: `dimensions.height - 4` (Dashboard fixed at 4 rows)
 
-- [ ] **Wire up completion dialog**
+- [x] **Wire up completion dialog**
   - Modify `src/App.tsx`
   - When `loop.state().type === "complete"`:
     - Calculate `totalTime` from stats

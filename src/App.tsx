@@ -36,6 +36,7 @@ import {
   TerminalPanel,
   QuitConfirmation,
   DialogResume,
+  DialogCompletion,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
@@ -579,6 +580,25 @@ function AppContent(props: AppProps) {
     // When paused and user resumes (toggle_pause), start next iteration
     if (state.type === "running" && !state.sessionId && state.iteration > 0) {
       // This is handled by the state machine transition
+    }
+  })
+
+  // Completion effect - show dialog when plan is complete
+  createEffect(() => {
+    const state = loop.state()
+    if (state.type === "complete") {
+      // Calculate total time from stats
+      const totalTime = stats.totalActiveTime()
+      
+      dialog.show(() => (
+        <DialogCompletion
+          iterations={state.iterations}
+          totalTime={totalTime}
+          manualTasks={state.summary.manualTasks}
+          blockedTasks={state.summary.blockedTasks}
+          onClose={() => process.exit(0)}
+        />
+      ))
     }
   })
 

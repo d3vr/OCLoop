@@ -20,13 +20,15 @@ import { usePTY } from "./hooks/usePTY"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
 import { shutdownManager } from "./lib/shutdown"
+import { ThemeProvider } from "./context/ThemeContext"
+import { DialogProvider, DialogStack } from "./context/DialogContext"
 import {
   StatusBar,
   TerminalPanel,
   QuitConfirmation,
   ErrorDisplay,
 } from "./components"
-import type { CLIArgs, PlanProgress, LoopState } from "./types"
+import type { CLIArgs, PlanProgress } from "./types"
 
 // UI layout constants
 // Status bar takes 3 lines: status line + keybindings + current task (optional)
@@ -42,7 +44,24 @@ export interface AppProps extends CLIArgs {}
 /**
  * Main OCLoop application component
  *
- * Composes all hooks and components to create the loop harness:
+ * Wraps AppContent with ThemeProvider and DialogProvider
+ * for consistent theming and modal dialog support.
+ */
+export function App(props: AppProps) {
+  return (
+    <ThemeProvider>
+      <DialogProvider>
+        <AppContent {...props} />
+        <DialogStack />
+      </DialogProvider>
+    </ThemeProvider>
+  )
+}
+
+/**
+ * Internal App content component
+ *
+ * Contains all the application logic:
  * - Server management (useServer)
  * - SSE event subscription (useSSE)
  * - State machine (useLoopState)
@@ -54,7 +73,7 @@ export interface AppProps extends CLIArgs {}
  * - Q to quit (when detached)
  * - Y/N for quit confirmation
  */
-export function App(props: AppProps) {
+function AppContent(props: AppProps) {
   const renderer = useRenderer()
   const dimensions = useTerminalDimensions()
 

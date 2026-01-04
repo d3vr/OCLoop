@@ -47,7 +47,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
 
 ### Phase 3: Activity Log
 
-- [ ] Create `src/hooks/useActivityLog.ts` - Activity log state management
+- [x] Create `src/hooks/useActivityLog.ts` - Activity log state management
   - `ActivityEvent` type: `{ id, timestamp, type, message }`
   - Event types: `"session_start" | "session_idle" | "task" | "file_edit" | "error"`
   - `useActivityLog()` hook returning:
@@ -56,7 +56,7 @@ Replace the embedded PTY/ghostty-terminal approach with a user-configured extern
     - `clear()` - Empties the log
   - Auto-generates unique IDs via counter
 
-- [ ] Create `src/components/ActivityLog.tsx` - Activity log UI component
+- [x] Create `src/components/ActivityLog.tsx` - Activity log UI component
   - Props: `{ events: ActivityEvent[] }`
   - Bordered box that fills remaining space (like old TerminalPanel)
   - Title row: "Activity"

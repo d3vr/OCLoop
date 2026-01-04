@@ -16,6 +16,7 @@ export type ErrorSource = "server" | "sse" | "pty" | "api" | "plan"
  */
 export type LoopState =
   | { type: "starting" }
+  | { type: "ready" }  // Server ready, waiting for user to start iterations
   | { type: "running"; attached: boolean; iteration: number; sessionId: string }
   | { type: "pausing"; iteration: number; sessionId: string }
   | { type: "paused"; attached: boolean; iteration: number }
@@ -29,6 +30,7 @@ export type LoopState =
  */
 export type LoopAction =
   | { type: "server_ready" }
+  | { type: "start" }  // User initiates first iteration
   | { type: "toggle_attach" }
   | { type: "toggle_pause" }
   | { type: "quit" }
@@ -59,4 +61,5 @@ export interface CLIArgs {
   model?: string
   promptFile: string
   planFile: string
+  run?: boolean  // Start iterations immediately without waiting for user input
 }

@@ -19,6 +19,8 @@ function getStateDisplay(state: LoopState): { icon: string; text: string; color:
   switch (state.type) {
     case "starting":
       return { icon: "◐", text: "STARTING", color: "yellow" }
+    case "ready":
+      return { icon: "●", text: "READY", color: "cyan" }
     case "running":
       return { icon: "▶", text: "RUNNING", color: "green" }
     case "pausing":
@@ -82,6 +84,8 @@ export function StatusBar(props: StatusBarProps) {
     }
 
     switch (state.type) {
+      case "ready":
+        return "[S] Start  [Q] Quit"
       case "running":
         return "[Ctrl+\\] Attach  [Space] Pause  [Q] Quit"
       case "paused":

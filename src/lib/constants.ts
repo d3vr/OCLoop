@@ -13,6 +13,8 @@ export const KEYS = {
   N_UPPER: "N",
   R_LOWER: "r",
   R_UPPER: "R",
+  S_LOWER: "s",
+  S_UPPER: "S",
 } as const
 
 /**

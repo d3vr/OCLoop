@@ -29,12 +29,14 @@ the opencode TUI embedded and visible throughout.
 Options:
   -p, --port <number>      Server port (opencode defaults: try 4096, then random)
   -m, --model <string>     Model to use (passed to opencode)
+  -r, --run                Start iterations immediately (default: wait for [S])
   --prompt <path>          Path to loop prompt file (default: ${DEFAULTS.PROMPT_FILE})
   --plan <path>            Path to plan file (default: ${DEFAULTS.PLAN_FILE})
   -h, --help               Show help
 
 Examples:
-  ocloop                           # Start with defaults
+  ocloop                           # Start, wait for [S] to begin
+  ocloop -r                        # Start iterations immediately
   ocloop -m claude-sonnet-4        # Use specific model
   ocloop --plan my-plan.md         # Use custom plan file
 `)
@@ -95,6 +97,11 @@ function parseArgs(argv: string[]): CLIArgs {
           process.exit(1)
         }
         args.planFile = planPath
+        break
+
+      case "-r":
+      case "--run":
+        args.run = true
         break
 
       default:

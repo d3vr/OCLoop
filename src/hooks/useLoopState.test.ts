@@ -4,9 +4,34 @@ import type { LoopState, LoopAction } from "../types"
 
 describe("loopReducer", () => {
   describe("server_ready action", () => {
-    it("should transition from starting to running (detached)", () => {
+    it("should transition from starting to ready", () => {
       const state: LoopState = { type: "starting" }
       const action: LoopAction = { type: "server_ready" }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("ready")
+    })
+
+    it("should not change state if already running", () => {
+      const state: LoopState = {
+        type: "running",
+        attached: true,
+        iteration: 5,
+        sessionId: "test-session",
+      }
+      const action: LoopAction = { type: "server_ready" }
+
+      const result = loopReducer(state, action)
+
+      expect(result).toEqual(state)
+    })
+  })
+
+  describe("start action", () => {
+    it("should transition from ready to running (detached)", () => {
+      const state: LoopState = { type: "ready" }
+      const action: LoopAction = { type: "start" }
 
       const result = loopReducer(state, action)
 
@@ -18,14 +43,27 @@ describe("loopReducer", () => {
       }
     })
 
-    it("should not change state if already running", () => {
+    it("should not change state if not in ready state", () => {
       const state: LoopState = {
         type: "running",
         attached: true,
         iteration: 5,
         sessionId: "test-session",
       }
-      const action: LoopAction = { type: "server_ready" }
+      const action: LoopAction = { type: "start" }
+
+      const result = loopReducer(state, action)
+
+      expect(result).toEqual(state)
+    })
+
+    it("should not change state if in paused state", () => {
+      const state: LoopState = {
+        type: "paused",
+        attached: false,
+        iteration: 2,
+      }
+      const action: LoopAction = { type: "start" }
 
       const result = loopReducer(state, action)
 
@@ -167,6 +205,15 @@ describe("loopReducer", () => {
 
     it("should not change state when starting", () => {
       const state: LoopState = { type: "starting" }
+      const action: LoopAction = { type: "toggle_attach" }
+
+      const result = loopReducer(state, action)
+
+      expect(result).toEqual(state)
+    })
+
+    it("should not change state when ready", () => {
+      const state: LoopState = { type: "ready" }
       const action: LoopAction = { type: "toggle_attach" }
 
       const result = loopReducer(state, action)
@@ -319,6 +366,15 @@ describe("loopReducer", () => {
       expect(result.type).toBe("stopping")
     })
 
+    it("should transition from ready to stopping", () => {
+      const state: LoopState = { type: "ready" }
+      const action: LoopAction = { type: "quit" }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("stopping")
+    })
+
     it("should not change state when starting", () => {
       const state: LoopState = { type: "starting" }
       const action: LoopAction = { type: "quit" }
@@ -372,6 +428,22 @@ describe("loopReducer", () => {
         expect(result.summary.blockedTasks).toEqual(["[BLOCKED: reason] Task"])
       }
     })
+
+    it("should transition from ready to complete with summary", () => {
+      const state: LoopState = { type: "ready" }
+      const action: LoopAction = {
+        type: "plan_complete",
+        summary: { manualTasks: [], blockedTasks: [] },
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("complete")
+      if (result.type === "complete") {
+        expect(result.iterations).toBe(0)
+        expect(result.summary).toEqual({ manualTasks: [], blockedTasks: [] })
+      }
+    })
   })
 
   describe("error action", () => {
@@ -390,6 +462,25 @@ describe("loopReducer", () => {
       if (result.type === "error") {
         expect(result.source).toBe("server")
         expect(result.message).toBe("Failed to start server")
+        expect(result.recoverable).toBe(true)
+      }
+    })
+
+    it("should transition from ready to error", () => {
+      const state: LoopState = { type: "ready" }
+      const action: LoopAction = {
+        type: "error",
+        source: "api",
+        message: "Something failed",
+        recoverable: true,
+      }
+
+      const result = loopReducer(state, action)
+
+      expect(result.type).toBe("error")
+      if (result.type === "error") {
+        expect(result.source).toBe("api")
+        expect(result.message).toBe("Something failed")
         expect(result.recoverable).toBe(true)
       }
     })
@@ -523,11 +614,15 @@ describe("loopReducer", () => {
   })
 
   describe("state machine flow scenarios", () => {
-    it("should handle a complete lifecycle: start → run → pause → resume → complete", () => {
+    it("should handle a complete lifecycle: start → ready → run → pause → resume → complete", () => {
       let state: LoopState = { type: "starting" }
 
       // Server becomes ready
       state = loopReducer(state, { type: "server_ready" })
+      expect(state.type).toBe("ready")
+
+      // User starts the loop
+      state = loopReducer(state, { type: "start" })
       expect(state.type).toBe("running")
 
       // First iteration starts

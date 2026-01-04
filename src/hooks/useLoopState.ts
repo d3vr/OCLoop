@@ -10,10 +10,12 @@ export interface UseLoopStateReturn {
 
   // Derived state
   isAttached: () => boolean
+  isReady: () => boolean
   isRunning: () => boolean
   isPaused: () => boolean
   isPausing: () => boolean
   isError: () => boolean
+  canStart: () => boolean
   canPause: () => boolean
   canQuit: () => boolean
   canRetry: () => boolean
@@ -32,8 +34,16 @@ export interface UseLoopStateReturn {
 export function loopReducer(state: LoopState, action: LoopAction): LoopState {
   switch (action.type) {
     case "server_ready": {
-      // Only transition from starting to running
+      // Only transition from starting to ready (waiting for user to start)
       if (state.type === "starting") {
+        return { type: "ready" }
+      }
+      return state
+    }
+
+    case "start": {
+      // User initiates iterations from ready state
+      if (state.type === "ready") {
         return { type: "running", attached: false, iteration: 0, sessionId: "" }
       }
       return state
@@ -128,6 +138,7 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
     case "quit": {
       // Transition to stopping from any active state
       if (
+        state.type === "ready" ||
         state.type === "running" ||
         state.type === "paused" ||
         state.type === "pausing"
@@ -139,9 +150,10 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
 
     case "plan_complete": {
       // Transition to complete state with summary
-      if (state.type === "running" || state.type === "paused") {
+      if (state.type === "ready" || state.type === "running" || state.type === "paused") {
         const iterations =
-          state.type === "running" ? state.iteration : state.iteration
+          state.type === "running" ? state.iteration : 
+          state.type === "paused" ? state.iteration : 0
         return { type: "complete", iterations, summary: action.summary }
       }
       return state
@@ -151,6 +163,7 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
       // Transition to error state from most states
       if (
         state.type === "starting" ||
+        state.type === "ready" ||
         state.type === "running" ||
         state.type === "pausing" ||
         state.type === "paused"
@@ -219,6 +232,10 @@ export function useLoopState(): UseLoopStateReturn {
     return false
   })
 
+  const isReady = createMemo(() => {
+    return state().type === "ready"
+  })
+
   const isRunning = createMemo(() => {
     const s = state()
     return s.type === "running" || s.type === "pausing"
@@ -245,8 +262,14 @@ export function useLoopState(): UseLoopStateReturn {
     return false
   })
 
+  const canStart = createMemo(() => {
+    return state().type === "ready"
+  })
+
   const canQuit = createMemo(() => {
     const s = state()
+    // Can quit from ready state (before iterations start)
+    if (s.type === "ready") return true
     // Can quit when detached in running or paused states
     if (s.type === "running" && !s.attached) return true
     if (s.type === "paused" && !s.attached) return true
@@ -289,10 +312,12 @@ export function useLoopState(): UseLoopStateReturn {
     state,
     dispatch,
     isAttached,
+    isReady,
     isRunning,
     isPaused,
     isPausing,
     isError,
+    canStart,
     canPause,
     canQuit,
     canRetry,

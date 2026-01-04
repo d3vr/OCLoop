@@ -292,17 +292,20 @@ export function App(props: AppProps) {
     process.exit(0)
   }
 
-  // Server ready effect - transition to running and connect SSE
+  // Server ready effect - transition to ready state and connect SSE
   createEffect(() => {
     if (server.status() === "ready" && loop.state().type === "starting") {
-      // Server is ready, transition to running state
+      // Server is ready, transition to ready state (waiting for user to start)
       loop.dispatch({ type: "server_ready" })
 
       // Connect SSE
       sse.reconnect()
 
-      // Start first iteration
-      startIteration()
+      // If --run flag is set, start immediately
+      if (props.run) {
+        loop.dispatch({ type: "start" })
+        startIteration()
+      }
     }
   })
 
@@ -375,6 +378,21 @@ export function App(props: AppProps) {
           return true
         }
         // Consume all other input while modal is shown
+        return true
+      }
+
+      // Ready state - handle S to start iterations
+      if (loop.canStart()) {
+        if (sequence === KEYS.S_LOWER || sequence === KEYS.S_UPPER) {
+          loop.dispatch({ type: "start" })
+          startIteration()
+          return true
+        }
+        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
+          loop.showQuitConfirmation()
+          return true
+        }
+        // Consume other input in ready state
         return true
       }
 

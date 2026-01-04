@@ -52,7 +52,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
   - Export `useTheme()` hook returning `{ theme: ThemeColors, mode: string }`
   - Export `ThemeProvider` component
 
-- [ ] **Create DialogContext provider**
+- [x] **Create DialogContext provider**
   - Create `src/context/DialogContext.tsx`
   - Implement stack-based dialog manager:
     - `show(component: () => JSX.Element)`: Push dialog to stack
@@ -62,7 +62,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
   - Handle Escape key to dismiss top dialog
   - Export `useDialog()` hook and `DialogProvider` component
 
-- [ ] **Create base Dialog component**
+- [x] **Create base Dialog component**
   - Create `src/ui/Dialog.tsx`
   - Renders as absolute-positioned overlay:
     - Full screen dimensions

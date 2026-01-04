@@ -177,7 +177,7 @@ This refactor introduces OpenCode's provider-based architecture, a theme system 
     - Footer: "Press any key to exit"
   - Use theme colors: `theme.success` for checkmark, `theme.warning` for manual, `theme.error` for blocked
 
-- [ ] **Create DialogError component**
+- [x] **Create DialogError component**
   - Create `src/components/DialogError.tsx`
   - Props:
     ```ts

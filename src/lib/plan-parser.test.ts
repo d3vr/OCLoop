@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { parsePlan, parseRemainingTasks } from "./plan-parser"
+import { parsePlan, parseRemainingTasks, getCurrentTaskFromContent } from "./plan-parser"
 
 describe("parsePlan", () => {
   it("should return empty progress for empty content", () => {
@@ -245,5 +245,94 @@ describe("parseRemainingTasks", () => {
 
     expect(result.manualTasks).toEqual(["Manual task"])
     expect(result.blockedTasks).toEqual([])
+  })
+})
+
+describe("getCurrentTaskFromContent", () => {
+  it("should return null for empty content", () => {
+    const result = getCurrentTaskFromContent("")
+
+    expect(result).toBeNull()
+  })
+
+  it("should return null when no unchecked tasks exist", () => {
+    const content = `
+- [x] Completed task
+- [x] Another completed
+`
+    const result = getCurrentTaskFromContent(content)
+
+    expect(result).toBeNull()
+  })
+
+  it("should return first unchecked task", () => {
+    const content = `
+- [x] Completed task
+- [ ] First pending task
+- [ ] Second pending task
+`
+    const result = getCurrentTaskFromContent(content)
+
+    expect(result).toBe("First pending task")
+  })
+
+  it("should handle task with bold formatting", () => {
+    const content = `
+- [ ] **Add current task detection**
+`
+    const result = getCurrentTaskFromContent(content)
+
+    expect(result).toBe("**Add current task detection**")
+  })
+
+  it("should skip MANUAL and BLOCKED tasks", () => {
+    const content = `
+- [MANUAL] Manual task
+- [BLOCKED: reason] Blocked task
+- [ ] First automatable task
+`
+    const result = getCurrentTaskFromContent(content)
+
+    expect(result).toBe("First automatable task")
+  })
+
+  it("should handle indented checkboxes", () => {
+    const content = `
+## Section
+  - [ ] Indented pending task
+`
+    const result = getCurrentTaskFromContent(content)
+
+    expect(result).toBe("Indented pending task")
+  })
+
+  it("should return null for empty task description", () => {
+    const content = `
+- [ ] 
+- [ ] Next task
+`
+    const result = getCurrentTaskFromContent(content)
+
+    // First one is empty, so null is returned
+    expect(result).toBeNull()
+  })
+
+  it("should skip empty and return first valid task", () => {
+    const content = `
+- [x] Completed
+- [ ] Valid task
+`
+    const result = getCurrentTaskFromContent(content)
+
+    expect(result).toBe("Valid task")
+  })
+
+  it("should handle complex task descriptions", () => {
+    const content = `
+- [ ] Create \`src/components/Dashboard.tsx\` with props
+`
+    const result = getCurrentTaskFromContent(content)
+
+    expect(result).toBe("Create `src/components/Dashboard.tsx` with props")
   })
 })

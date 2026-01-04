@@ -136,3 +136,40 @@ export async function parseCompletionFile(completePath: string): Promise<Complet
     return { manualTasks: [], blockedTasks: [] }
   }
 }
+
+/**
+ * Extracts the current task text from plan content.
+ *
+ * Finds the first unchecked task (- [ ]) and returns its description.
+ *
+ * @param content - The content of the PLAN.md file
+ * @returns The task description or null if no unchecked tasks found
+ */
+export function getCurrentTaskFromContent(content: string): string | null {
+  const lines = content.split("\n")
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    if (trimmed.startsWith("- [ ]")) {
+      // Extract the task description after the checkbox
+      const description = trimmed.replace(/^- \[ \]\s*/, "").trim()
+      return description || null
+    }
+  }
+
+  return null
+}
+
+/**
+ * Reads a PLAN.md file and returns the current (first unchecked) task.
+ *
+ * @param planPath - Path to the PLAN.md file
+ * @returns The task description or null if no unchecked tasks found
+ * @throws Error if the file cannot be read
+ */
+export async function getCurrentTask(planPath: string): Promise<string | null> {
+  const file = Bun.file(planPath)
+  const content = await file.text()
+  return getCurrentTaskFromContent(content)
+}

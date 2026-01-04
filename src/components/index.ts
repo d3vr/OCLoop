@@ -5,6 +5,7 @@
  */
 
 export { StatusBar, type StatusBarProps } from "./StatusBar"
+export { Dashboard, type DashboardProps } from "./Dashboard"
 export { ProgressIndicator, type ProgressIndicatorProps } from "./ProgressIndicator"
 export { TerminalPanel, type TerminalPanelProps } from "./TerminalPanel"
 export { QuitConfirmation, type QuitConfirmationProps } from "./QuitConfirmation"

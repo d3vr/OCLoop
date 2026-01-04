@@ -6,3 +6,4 @@ bun.lockb
 .opencode
 .DS_Store
 *.log
+.loop-state.json

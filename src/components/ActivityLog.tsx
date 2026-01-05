@@ -17,30 +17,32 @@ export interface ActivityLogProps {
 }
 
 /**
- * Get the icon for an event type
+ * Get the label for an event type
  */
-function getEventIcon(type: ActivityEventType): string {
+function getEventLabel(type: ActivityEventType): string {
   switch (type) {
     case "session_start":
-      return "▶";
+      return "[start]";
     case "session_idle":
-      return "◯";
+      return "[idle]";
     case "task":
-      return "◆";
+      return "[task]";
     case "file_edit":
-      return "✎";
+      return "[edit]";
     case "error":
-      return "⚠";
+      return "[error]";
     case "user_message":
-      return ">";
+      return "[user]";
     case "assistant_message":
-      return "<";
+      return "[ai]";
     case "reasoning":
-      return "~";
+      return "[think]";
     case "tool_use":
-      return "⚙";
+      return "[tool]";
+    case "file_read":
+      return "[read]";
     default:
-      return "•";
+      return "[???]";
   }
 }
 
@@ -161,7 +163,7 @@ export function ActivityLog(props: ActivityLogProps) {
               </span>
               <span style={{ fg: getEventColor(event) }}>
                 {"  "}
-                {getEventIcon(event.type)} {truncateText(event.message, 40)}
+                {getEventLabel(event.type)} {truncateText(event.message, 40)}
                 {event.detail ? ` ${event.detail}` : ""}
               </span>
             </text>

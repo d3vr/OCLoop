@@ -82,7 +82,7 @@ Labels are color-coded:
 
 ### Phase 4: Handle `read` Tool as `file_read` Event
 
-- [ ] Update `onToolUse` handler in `src/App.tsx` (around line 280-285)
+- [x] Update `onToolUse` handler in `src/App.tsx` (around line 280-285)
   - Check if `toolName === "read"`
   - If read: call `activityLog.addEvent("file_read", preview)` (no detail, no dimmed)
   - Otherwise: keep existing `activityLog.addEvent("tool_use", preview, { detail: toolName })`

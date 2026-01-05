@@ -843,6 +843,12 @@ function AppContent(props: AppProps) {
         })
       }
 
+      // Ctrl+P - open command palette (handle globally before state-specific handlers)
+      if (sequence === KEYS.CTRL_P) {
+        command.show()
+        return true
+      }
+
       // If showing modals/dialogs, don't interfere unless it's global shortcuts that override them
       // But typically we want the dialogs to handle their own input.
 

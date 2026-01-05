@@ -126,11 +126,12 @@ export function ActivityLog(props: ActivityLogProps) {
       <Show when={props.tokens && props.diff}>
         <box
           style={{
-            height: 1,
+            height: 2,
             flexDirection: "row",
             justifyContent: "space-between",
             paddingLeft: 1,
             paddingRight: 1,
+            paddingTop: 1,
             marginBottom: 1,
             flexShrink: 0,
           }}
@@ -150,12 +151,23 @@ export function ActivityLog(props: ActivityLogProps) {
       </Show>
 
       {/* Event list - scrollable, most recent at bottom */}
-      <box
+      <scrollbox
+        stickyScroll={true}
+        stickyStart="bottom"
+        verticalScrollbarOptions={{
+          visible: true,
+          trackOptions: {
+            foregroundColor: theme().primary,
+          },
+        }}
+        viewportOptions={{
+          paddingRight: 1,
+        }}
         style={{
           flexGrow: 1,
           flexDirection: "column",
           paddingLeft: 1,
-          paddingRight: 1,
+          paddingBottom: 2,
           overflow: "hidden",
         }}
       >
@@ -187,7 +199,7 @@ export function ActivityLog(props: ActivityLogProps) {
             );
           }}
         </For>
-      </box>
+      </scrollbox>
     </box>
   );
 }

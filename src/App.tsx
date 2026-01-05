@@ -487,6 +487,10 @@ function AppContent(props: AppProps) {
     // Stop server
     await server.stop()
 
+    // Clear title and restore terminal
+    renderer.setTerminalTitle("")
+    renderer.destroy()
+
     // Exit process
     process.exit(exitCode)
   }

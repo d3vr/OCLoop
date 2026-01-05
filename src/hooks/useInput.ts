@@ -38,7 +38,7 @@ export function useInput(handler: (input: string, key: Key) => void) {
 
       // Pass "enter" as alias for "return" to match expectations
       if (key.name === "enter") {
-         handler(sequence, { ...key, name: "return" })
+         key.name = "return"
       }
       
       handler(sequence, key)

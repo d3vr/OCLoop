@@ -842,6 +842,7 @@ function AppContent(props: AppProps) {
         keybind: "T",
         disabled: !hasSession,
         onSelect: () => {
+          dialog.clear()
           setShowingTerminalConfig(true)
         },
       },

@@ -209,7 +209,9 @@ export function DialogTerminalConfig(props: DialogTerminalConfigProps) {
 
   // Keybinds for list view
   const keybinds = [
-    { label: "Copy", key: "C", onSelect: state.onCopy, bind: ["c", "C"] }
+    { label: "Select", key: "Enter" },
+    { label: "Navigate", key: "↑/↓" },
+    { label: "Copy", key: "^C", onSelect: state.onCopy, bind: ["\x03"] }
   ]
 
   return (

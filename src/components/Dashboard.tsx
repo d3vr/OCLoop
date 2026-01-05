@@ -121,18 +121,21 @@ export function Dashboard(props: DashboardProps) {
       case "ready":
         return [
           { key: "S", desc: "start" },
+          { key: "^P", desc: "commands" },
           { key: "Q", desc: "quit" },
         ]
       case "running":
         return [
           { key: "T", desc: "terminal" },
           { key: "Space", desc: "pause" },
+          { key: "^P", desc: "commands" },
           { key: "Q", desc: "quit" },
         ]
       case "paused":
         return [
           { key: "T", desc: "terminal" },
           { key: "Space", desc: "resume" },
+          { key: "^P", desc: "commands" },
           { key: "Q", desc: "quit" },
         ]
       case "pausing":
@@ -153,12 +156,14 @@ export function Dashboard(props: DashboardProps) {
           return [
             { key: "T", desc: "terminal" },
             { key: "N", desc: "new session" },
+            { key: "^P", desc: "commands" },
             { key: "Q", desc: "quit" },
           ]
         }
         // No active session
         return [
           { key: "N", desc: "new session" },
+          { key: "^P", desc: "commands" },
           { key: "Q", desc: "quit" },
         ]
       default:

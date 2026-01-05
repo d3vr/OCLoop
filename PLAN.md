@@ -40,7 +40,7 @@ Fix remaining UI/UX issues in the DialogSelect component, Terminal Config dialog
 
 ### Phase 2: Terminal Config Dialog Fixes
 
-- [ ] **Fix keybindings - change Copy from "C" to "Ctrl+C" and add navigation hints**
+- [x] **Fix keybindings - change Copy from "C" to "Ctrl+C" and add navigation hints**
   - File: `src/components/DialogTerminalConfig.tsx`
   - Lines 210-213: Update keybinds array
   - Current: `{ label: "Copy", key: "C", onSelect: state.onCopy, bind: ["c", "C"] }`
@@ -54,7 +54,7 @@ Fix remaining UI/UX issues in the DialogSelect component, Terminal Config dialog
     ```
   - Note: `\x03` is Ctrl+C. The display key is "^C"
 
-- [ ] **Fix double terminal launch on selection**
+- [x] **Fix double terminal launch on selection**
   - File: `src/ui/DialogSelect.tsx`
   - Lines 78-84: When Enter is pressed, investigate if handler fires twice
   - Lines 196-200: Mouse click also triggers selection
@@ -66,7 +66,7 @@ Fix remaining UI/UX issues in the DialogSelect component, Terminal Config dialog
 
 ### Phase 3: Command Palette Integration Fixes
 
-- [ ] **Fix "Choose default terminal" modal stacking issue**
+- [x] **Fix "Choose default terminal" modal stacking issue**
   - File: `src/App.tsx`
   - Lines 825-827: When selecting "Choose default terminal" from command palette, the terminal config modal opens behind the command palette
   - Need to close command palette before showing terminal config
@@ -87,7 +87,7 @@ Fix remaining UI/UX issues in the DialogSelect component, Terminal Config dialog
 
 ### Phase 4: Dashboard Command Palette Hint
 
-- [ ] **Add command palette keybinding hint to Dashboard**
+- [x] **Add command palette keybinding hint to Dashboard**
   - File: `src/components/Dashboard.tsx`
   - Lines 115-166: Add `{ key: "^P", desc: "commands" }` to keybindHints for applicable states
   - States to update:

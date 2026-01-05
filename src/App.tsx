@@ -127,6 +127,9 @@ function AppContent(props: AppProps) {
   const [persistedState, setPersistedState] = createSignal<LoopStateFile | null>(null)
   const [showingResumeDialog, setShowingResumeDialog] = createSignal(false)
 
+  // Active model
+  const [activeModel, setActiveModel] = createSignal<string | undefined>(props.model)
+
   // Track if we've initialized (to prevent double initialization)
   let sessionInitialized = false
 
@@ -526,6 +529,22 @@ function AppContent(props: AppProps) {
 
       // Connect SSE
       sse.reconnect()
+
+      // Fetch active model from config if not already set via CLI
+      if (!activeModel()) {
+        const url = server.url()
+        if (url) {
+          createOpencodeClient({ baseUrl: url }).config.get()
+            .then(res => {
+              if (res.data?.model) {
+                setActiveModel(res.data.model)
+              }
+            })
+            .catch(err => {
+              log.error("config", "Failed to fetch model from config", err)
+            })
+        }
+      }
 
       // Initialize session persistence (only once)
       if (!sessionInitialized) {
@@ -979,6 +998,7 @@ function AppContent(props: AppProps) {
         progress={planProgress()}
         stats={stats}
         currentTask={currentTask() ?? null}
+        model={activeModel()}
       />
 
       {/* Activity Log takes remaining space */}

@@ -14,7 +14,7 @@ class DebugLogger {
     this.logFile = path.resolve(process.cwd(), LOG_FILE);
   }
 
-  sessionStart(opts: { debug: boolean; cwd: string }) {
+  sessionStart(opts: { debug: boolean; cwd: string; model?: string }) {
     // Rotate logs
     if (fs.existsSync(this.logFile)) {
       const oldLogPath = path.resolve(process.cwd(), OLD_LOG_FILE);
@@ -33,6 +33,7 @@ class DebugLogger {
       `OCLOOP SESSION: ${new Date().toISOString()}`,
       `Working Directory: ${opts.cwd}`,
       `Debug Mode: ${opts.debug}`,
+      `Model: ${opts.model || 'default'}`,
       '================================================================================',
       ''
     ].join('\n');

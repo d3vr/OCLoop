@@ -158,13 +158,14 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
 
   // Initialize logging
-  log.sessionStart({ debug: !!args.debug, cwd: process.cwd() })
+  log.sessionStart({ debug: !!args.debug, cwd: process.cwd(), model: args.model })
   
   log.info("startup", "CLI arguments", { 
     plan: args.planFile, 
     prompt: args.promptFile, 
     debug: args.debug, 
-    run: args.run 
+    run: args.run,
+    model: args.model
   })
 
   // Log plan file status

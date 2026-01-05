@@ -14,6 +14,7 @@ export interface DashboardProps {
   progress: PlanProgress | null
   stats: UseLoopStatsReturn
   currentTask: string | null
+  model?: string
 }
 
 /**
@@ -215,6 +216,14 @@ export function Dashboard(props: DashboardProps) {
             [{badge().icon} {badge().text}]
           </span>
         </text>
+
+        {/* Model display */}
+        <Show when={props.model}>
+          <text style={{ marginLeft: 2 }}>
+            <span style={{ fg: theme().textMuted }}>Model</span>
+            <span style={{ fg: theme().text }}> {props.model}</span>
+          </text>
+        </Show>
 
         {/* Iteration counter */}
         <Show when={iteration() > 0}>

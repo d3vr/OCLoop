@@ -1,0 +1,43 @@
+
+export function formatTokenCount(n: number): string {
+  return n.toLocaleString();
+}
+
+export function truncateText(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.substring(0, Math.max(0, maxLen - 3)) + "...";
+}
+
+export function formatDiffSummary(additions: number, deletions: number, files: number): string {
+  return `+${additions}/-${deletions} (${files})`;
+}
+
+function getBasename(path: string): string {
+  // Handle both forward and backward slashes
+  return path.split(/[/\\]/).pop() || path;
+}
+
+export function getToolPreview(toolName: string, input: Record<string, unknown>): string {
+  try {
+    switch (toolName) {
+      case "bash":
+        return truncateText(String(input.command || ""), 50);
+      case "read":
+        return getBasename(String(input.filePath || ""));
+      case "write":
+        return getBasename(String(input.filePath || ""));
+      case "edit":
+        return getBasename(String(input.filePath || ""));
+      case "glob":
+        return String(input.pattern || "");
+      case "grep":
+        return String(input.pattern || "");
+      case "task":
+        return String(input.description || "subtask");
+      default:
+        return toolName;
+    }
+  } catch (e) {
+    return toolName;
+  }
+}

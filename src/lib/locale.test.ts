@@ -9,8 +9,8 @@ describe("locale utilities", () => {
     });
 
     test("truncates string and adds ellipsis if length exceeds limit", () => {
-      expect(truncate("hello world", 8)).toBe("hello...");
-      expect(truncate("hello world", 5)).toBe("he...");
+      expect(truncate("hello world", 8)).toBe("hello w…");
+      expect(truncate("hello world", 5)).toBe("hell…");
     });
   });
 

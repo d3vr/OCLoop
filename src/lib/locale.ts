@@ -4,5 +4,5 @@ export function truncate(str: string, len: number): string {
 }
 
 export function titlecase(str: string): string {
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+  return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }

@@ -85,21 +85,23 @@ export function DialogSelect(props: DialogSelectProps) {
     }
 
     if (key.name === "up" || (input === KEYS.CTRL_P)) {
-      setSelectedIndex(Math.max(0, selectedIndex() - 1))
+      const newIndex = Math.max(0, selectedIndex() - 1)
+      setSelectedIndex(newIndex)
       // Scroll up if needed
-      if (selectedIndex() < viewportStart()) {
-        setViewportStart(selectedIndex())
+      if (newIndex < viewportStart()) {
+        setViewportStart(newIndex)
       }
-      if (props.onMove) props.onMove(filteredOptions()[selectedIndex()])
+      if (props.onMove) props.onMove(filteredOptions()[newIndex])
     }
 
     if (key.name === "down" || (input === KEYS.CTRL_N)) {
-      setSelectedIndex(Math.min(filteredOptions().length - 1, selectedIndex() + 1))
+      const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + 1)
+      setSelectedIndex(newIndex)
       // Scroll down if needed
-      if (selectedIndex() >= viewportStart() + ITEMS_PER_PAGE) {
-        setViewportStart(selectedIndex() - ITEMS_PER_PAGE + 1)
+      if (newIndex >= viewportStart() + ITEMS_PER_PAGE) {
+        setViewportStart(newIndex - ITEMS_PER_PAGE + 1)
       }
-      if (props.onMove) props.onMove(filteredOptions()[selectedIndex()])
+      if (props.onMove) props.onMove(filteredOptions()[newIndex])
     }
 
     if (key.name === "pageup") {

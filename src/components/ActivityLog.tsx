@@ -1,6 +1,8 @@
-import { For, createMemo } from "solid-js";
+import { For, createMemo, Show } from "solid-js";
 import { useTheme } from "../context/ThemeContext";
 import type { ActivityEvent, ActivityEventType } from "../hooks/useActivityLog";
+import type { SessionTokens, SessionDiff } from "../hooks/useSessionStats";
+import { formatTokenCount, formatDiffSummary, truncateText } from "../lib/format";
 
 /**
  * Props for the ActivityLog component
@@ -8,6 +10,10 @@ import type { ActivityEvent, ActivityEventType } from "../hooks/useActivityLog";
 export interface ActivityLogProps {
   /** List of activity events to display */
   events: ActivityEvent[];
+  /** Session token statistics */
+  tokens?: SessionTokens;
+  /** Session diff statistics */
+  diff?: SessionDiff;
 }
 
 /**
@@ -25,6 +31,14 @@ function getEventIcon(type: ActivityEventType): string {
       return "✎";
     case "error":
       return "⚠";
+    case "user_message":
+      return ">";
+    case "assistant_message":
+      return "<";
+    case "reasoning":
+      return "~";
+    case "tool_use":
+      return "⚙";
     default:
       return "•";
   }
@@ -43,7 +57,7 @@ function formatTime(date: Date): string {
 /**
  * ActivityLog component
  *
- * Displays a scrollable list of activity events in a bordered panel.
+ * Displays a scrollable list of activity events.
  *
  * Each row shows: `HH:MM:SS  <icon> <message>`
  *
@@ -52,20 +66,30 @@ function formatTime(date: Date): string {
  * - task: primary color
  * - file_edit: normal text with edit icon
  * - error: error color with warning icon
+ * - dimmed events (messages, reasoning): muted text
  *
  * @example
  * ```tsx
  * const activity = useActivityLog()
+ * const stats = useSessionStats()
  *
- * <ActivityLog events={activity.events()} />
+ * <ActivityLog
+ *   events={activity.events()}
+ *   tokens={stats.tokens()}
+ *   diff={stats.diff()}
+ * />
  * ```
  */
 export function ActivityLog(props: ActivityLogProps) {
   const { theme } = useTheme();
 
   // Get color for event type
-  const getEventColor = (type: ActivityEventType): string => {
-    switch (type) {
+  const getEventColor = (event: ActivityEvent): string => {
+    if (event.dimmed) {
+      return theme().textMuted;
+    }
+
+    switch (event.type) {
       case "session_start":
       case "session_idle":
         return theme().textMuted;
@@ -86,26 +110,38 @@ export function ActivityLog(props: ActivityLogProps) {
   return (
     <box
       style={{
-        border: true,
-        borderStyle: "single",
-        borderColor: theme().borderSubtle,
+        backgroundColor: theme().backgroundPanel,
         flexGrow: 1,
         flexDirection: "column",
         marginTop: -1,
         overflow: "hidden",
       }}
     >
-      {/* Title row */}
-      <box
-        style={{
-          paddingLeft: 1,
-          paddingRight: 1,
-        }}
-      >
-        <text>
-          <span style={{ fg: theme().textMuted }}>Activity</span>
-        </text>
-      </box>
+      {/* Stats header */}
+      <Show when={props.tokens && props.diff}>
+        <box
+          style={{
+            height: 1,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            paddingLeft: 1,
+            paddingRight: 1,
+            marginBottom: 1,
+          }}
+        >
+          <text>
+            <span style={{ fg: theme().textMuted }}>
+              Tokens: {formatTokenCount(props.tokens!.input + props.tokens!.output + props.tokens!.reasoning)}
+              {" "}(in:{formatTokenCount(props.tokens!.input)} out:{formatTokenCount(props.tokens!.output)} rsn:{formatTokenCount(props.tokens!.reasoning)})
+            </span>
+          </text>
+          <text>
+            <span style={{ fg: theme().textMuted }}>
+              Diff: {formatDiffSummary(props.diff!.additions, props.diff!.deletions, props.diff!.files)}
+            </span>
+          </text>
+        </box>
+      </Show>
 
       {/* Event list - scrollable, most recent at bottom */}
       <box
@@ -123,9 +159,10 @@ export function ActivityLog(props: ActivityLogProps) {
               <span style={{ fg: theme().textMuted }}>
                 {formatTime(event.timestamp)}
               </span>
-              <span style={{ fg: getEventColor(event.type) }}>
+              <span style={{ fg: getEventColor(event) }}>
                 {"  "}
-                {getEventIcon(event.type)} {event.message}
+                {getEventIcon(event.type)} {truncateText(event.message, 40)}
+                {event.detail ? ` ${event.detail}` : ""}
               </span>
             </text>
           )}

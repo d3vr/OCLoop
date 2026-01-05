@@ -15,10 +15,12 @@ import { useServer } from "./hooks/useServer"
 import { useSSE } from "./hooks/useSSE"
 import { useLoopState } from "./hooks/useLoopState"
 import { useLoopStats } from "./hooks/useLoopStats"
+import { useSessionStats } from "./hooks/useSessionStats"
 import { useActivityLog } from "./hooks/useActivityLog"
 import { log } from "./lib/debug-logger"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile, getCurrentTask } from "./lib/plan-parser"
 import { KEYS, DEFAULTS, isKeyboardInput } from "./lib/constants"
+import { getToolPreview } from "./lib/format"
 import { shutdownManager } from "./lib/shutdown"
 import {
   loadLoopState,
@@ -112,6 +114,9 @@ function AppContent(props: AppProps) {
 
   // Loop timing statistics
   const stats = useLoopStats()
+
+  // Session statistics (tokens, diff)
+  const sessionStats = useSessionStats()
 
   // Activity Log
   const activityLog = useActivityLog()
@@ -232,6 +237,7 @@ function AppContent(props: AppProps) {
       onSessionCreated: (id) => {
         activityLog.addEvent("session_start", `Session started: ${id.substring(0, 8)}`)
         setLastSessionId(id)
+        sessionStats.reset()
       },
       onSessionError: (id, error) => {
         activityLog.addEvent("error", `Session error: ${error}`)
@@ -264,6 +270,25 @@ function AppContent(props: AppProps) {
           // Also refresh current task as fallback for SSE todo updates
           refreshCurrentTask()
         }
+      },
+      onStepFinish: (part) => {
+        sessionStats.addTokens(part.tokens)
+      },
+      onSessionSummary: (summary) => {
+        sessionStats.setDiff(summary)
+      },
+      onToolUse: (part) => {
+        const toolName = part.state.tool
+        const input = part.state.input as Record<string, unknown>
+        const preview = getToolPreview(toolName, input)
+        activityLog.addEvent("tool_use", preview, { detail: toolName })
+      },
+      onMessageText: (part, role) => {
+        const type = role === "user" ? "user_message" : "assistant_message"
+        activityLog.addEvent(type, part.text, { dimmed: true })
+      },
+      onReasoning: (part) => {
+        activityLog.addEvent("reasoning", part.text, { dimmed: true })
       },
     },
   })
@@ -1003,7 +1028,11 @@ function AppContent(props: AppProps) {
       />
 
       {/* Activity Log takes remaining space */}
-      <ActivityLog events={activityLog.events()} />
+      <ActivityLog 
+        events={activityLog.events()} 
+        tokens={sessionStats.tokens()}
+        diff={sessionStats.diff()}
+      />
 
       {/* Overlays */}
       <Show when={showingTerminalConfig()}>

@@ -293,7 +293,7 @@ function AppContent(props: AppProps) {
         sessionStats.setDiff({ additions, deletions, files })
       },
       onToolUse: (part) => {
-        const toolName = part.state.tool
+        const toolName = part.tool || part.state.tool || "unknown"
         const input = part.state.input as Record<string, unknown>
         const preview = getToolPreview(toolName, input)
         

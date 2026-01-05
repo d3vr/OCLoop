@@ -26,10 +26,11 @@ function truncateForLog(data: unknown, maxValueLength = MAX_LOG_VALUE_LENGTH): u
 }
 
 export interface ToolPart {
-  type: "tool-use"
+  type: "tool" | "tool-use"
   id: string
+  tool?: string
   state: {
-    tool: string
+    tool?: string
     input: unknown
     status: string
   }
@@ -320,8 +321,13 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
 
         if (!part || !part.id) return
 
-        if (part.type === "tool-use") {
-          handlers.onToolUse?.(part as ToolPart)
+        if (part.type === "tool-use" || part.type === "tool") {
+          // Only emit when we have input data (running) and haven't seen this tool call yet
+          const status = (part as any).state?.status
+          if (status === "running" && !seenPartIds.has(part.id)) {
+            seenPartIds.add(part.id)
+            handlers.onToolUse?.(part as ToolPart)
+          }
         } else if (part.type === "text") {
           if (!seenPartIds.has(part.id)) {
             seenPartIds.add(part.id)

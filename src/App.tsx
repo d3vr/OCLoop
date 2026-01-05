@@ -456,8 +456,9 @@ function AppContent(props: AppProps) {
 
   /**
    * Handle quit - abort session and cleanup gracefully
+   * @param exitCode - Exit code to use (default: 0)
    */
-  async function handleQuit(): Promise<void> {
+  async function handleQuit(exitCode: number = 0): Promise<void> {
     // Save state before quitting so user can resume
     const iteration = loop.iteration()
     if (iteration > 0) {
@@ -487,7 +488,7 @@ function AppContent(props: AppProps) {
     await server.stop()
 
     // Exit process
-    process.exit(0)
+    process.exit(exitCode)
   }
 
   // Server ready effect - transition to ready state and connect SSE
@@ -640,7 +641,7 @@ function AppContent(props: AppProps) {
           manualTasks={state.summary.manualTasks}
           blockedTasks={state.summary.blockedTasks}
           rawContent={state.summary.rawContent}
-          onClose={() => process.exit(0)}
+          onClose={() => handleQuit()}
         />
       ))
     }
@@ -661,7 +662,7 @@ function AppContent(props: AppProps) {
               loop.dispatch({ type: "retry" })
             }
           }}
-          onQuit={() => process.exit(1)}
+          onQuit={() => handleQuit(1)}
         />
       ))
     }
@@ -868,7 +869,7 @@ function AppContent(props: AppProps) {
       // Complete state - Q to exit
       if (loop.state().type === "complete") {
         if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-          process.exit(0)
+          handleQuit()
         }
         return true
       }
@@ -902,7 +903,7 @@ function AppContent(props: AppProps) {
           return true
         }
         if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-          process.exit(1)
+          handleQuit(1)
         }
         return true // consume other input in error state
       }

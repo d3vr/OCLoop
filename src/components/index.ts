@@ -10,6 +10,6 @@ export { DialogCompletion, type DialogCompletionProps } from "./DialogCompletion
 export { DialogError, type DialogErrorProps } from "./DialogError"
 export { DialogResume, type DialogResumeProps } from "./DialogResume"
 export { DialogTerminalConfig, createTerminalConfigState, type DialogTerminalConfigProps, type TerminalConfigState } from "./DialogTerminalConfig"
-export { DialogTerminalError, createTerminalErrorState, type DialogTerminalErrorProps, type TerminalErrorState } from "./DialogTerminalError"
+export { DialogTerminalError, type DialogTerminalErrorProps } from "./DialogTerminalError"
 export { ProgressIndicator, type ProgressIndicatorProps } from "./ProgressIndicator"
 export { QuitConfirmation, type QuitConfirmationProps } from "./QuitConfirmation"

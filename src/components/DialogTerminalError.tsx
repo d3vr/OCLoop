@@ -1,49 +1,7 @@
-/**
- * Dialog Terminal Error Component
- *
- * Displays an error dialog when terminal launch fails, showing:
- * - Terminal name and error message
- * - Suggestion to edit config file
- * - Attach command for manual copy
- *
- * Uses the Dialog component for consistent styling.
- */
-
 import { Dialog } from "../ui/Dialog"
 import { useTheme } from "../context/ThemeContext"
 import { getConfigPath } from "../lib/config"
-
-/**
- * State exposed by the dialog for input handling
- */
-export interface TerminalErrorState {
-  handleInput: (sequence: string) => boolean
-}
-
-/**
- * Create state and input handling for terminal error dialog
- */
-export function createTerminalErrorState(
-  onCopy: () => void,
-  onClose: () => void,
-): TerminalErrorState {
-  
-  const handleInput = (sequence: string): boolean => {
-    // C - copy
-    if (sequence === "c" || sequence === "C") {
-      onCopy()
-      return true
-    }
-    // Escape or Enter - close
-    if (sequence === "\x1b" || sequence === "\r" || sequence === "\n") {
-      onClose()
-      return true
-    }
-    return true // Consume all other input
-  }
-
-  return { handleInput }
-}
+import { useInput } from "../hooks/useInput"
 
 /**
  * Props for the DialogTerminalError component
@@ -66,25 +24,27 @@ export interface DialogTerminalErrorProps {
  *
  * Shows an error dialog when terminal launch fails,
  * suggesting fixes and providing the attach command.
- *
- * @example
- * ```tsx
- * <DialogTerminalError
- *   terminalName="alacritty"
- *   errorMessage="Command not found: alacritty"
- *   attachCommand="opencode attach http://localhost:3000 --session abc123"
- *   onCopy={() => copyToClipboard()}
- *   onClose={() => closeDialog()}
- * />
- * ```
  */
 export function DialogTerminalError(props: DialogTerminalErrorProps) {
   const { theme } = useTheme()
 
+  useInput((input, key) => {
+    // C - copy
+    if (input === "c" || input === "C") {
+      props.onCopy()
+      return
+    }
+    // Escape or Enter - close
+    if (key.name === "escape" || key.name === "return" || key.name === "enter") {
+      props.onClose()
+      return
+    }
+  })
+
   // Calculate dialog height based on content
   const dialogHeight = () => {
-    // Base: title + error line + config hint + command + footer + padding
-    let height = 10
+    // Base: header + error line + config hint + command + footer + padding
+    let height = 11
 
     // Add extra height for longer error messages
     const messageLines = Math.ceil(props.errorMessage.length / 50)
@@ -92,18 +52,23 @@ export function DialogTerminalError(props: DialogTerminalErrorProps) {
       height += messageLines - 1
     }
 
-    return Math.max(10, height)
+    return Math.max(11, height)
   }
 
   const configPath = getConfigPath()
 
   return (
-    <Dialog onClose={props.onClose} title="" width={60} height={dialogHeight()}>
+    <Dialog onClose={props.onClose} width={60} height={dialogHeight()}>
       <box style={{ flexDirection: "column" }}>
-        {/* Title */}
-        <text>
-          <span style={{ fg: theme().error, bold: true }}>Terminal Launch Failed</span>
-        </text>
+        {/* Header */}
+        <box style={{ width: "100%", justifyContent: "space-between", marginBottom: 1 }}>
+          <text>
+            <span style={{ fg: theme().error, bold: true }}>Terminal Launch Failed</span>
+          </text>
+          <text>
+            <span style={{ fg: theme().textMuted }}>esc</span>
+          </text>
+        </box>
 
         {/* Terminal name and error */}
         <text style={{ marginTop: 1 }}>
@@ -127,10 +92,9 @@ export function DialogTerminalError(props: DialogTerminalErrorProps) {
 
         {/* Footer */}
         <text style={{ marginTop: 2 }}>
-          <span style={{ fg: theme().text }}>[C]</span>
-          <span style={{ fg: theme().textMuted }}> copy command  </span>
-          <span style={{ fg: theme().text }}>[Esc]</span>
-          <span style={{ fg: theme().textMuted }}> close</span>
+          <span style={{ bold: true }}>Copy</span> C
+          <span style={{ fg: theme().textMuted }}>  </span>
+          <span style={{ bold: true }}>Close</span> esc
         </text>
       </box>
     </Dialog>

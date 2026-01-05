@@ -49,7 +49,6 @@ import {
   DialogTerminalConfig,
   createTerminalConfigState,
   DialogTerminalError,
-  createTerminalErrorState,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
@@ -806,11 +805,7 @@ function AppContent(props: AppProps) {
     () => setShowingTerminalConfig(false)
   )
 
-  // Create state for terminal error dialog
-  const terminalErrorState = createTerminalErrorState(
-     onErrorCopy,
-     () => setTerminalError(null)
-  )
+
 
   // Input handler for keybindings
   onMount(() => {
@@ -828,10 +823,6 @@ function AppContent(props: AppProps) {
 
       // If showing modals/dialogs, don't interfere unless it's global shortcuts that override them
       // But typically we want the dialogs to handle their own input.
-      
-      if (terminalError()) {
-         return terminalErrorState.handleInput(sequence)
-      }
 
       // Ctrl+\ (0x1c) - always handle - REMOVED, now handling T in specific states
 

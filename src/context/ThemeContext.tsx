@@ -167,3 +167,28 @@ export function useTheme(): ThemeContextValue {
 
   return context
 }
+
+/**
+ * Calculate appropriate text color for a selected item background
+ *
+ * Uses basic relative luminance calculation to determine if the background
+ * color is light or dark, and returns contrasting text color.
+ *
+ * @param theme The current theme colors
+ * @returns Hex color string for the text (either primary or secondary text color)
+ */
+export function selectedForeground(theme: ThemeColors): string {
+  // Parse hex color to RGB
+  const hex = theme.primary.replace("#", "")
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+
+  // Calculate relative luminance (perceived brightness)
+  // Formula: 0.299R + 0.587G + 0.114B
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+  // If background is light (> 0.5), use dark text
+  // If background is dark (<= 0.5), use light text
+  return luminance > 0.5 ? "#000000" : "#FFFFFF"
+}

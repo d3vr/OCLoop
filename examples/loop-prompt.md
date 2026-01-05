@@ -1,11 +1,20 @@
+---
+description: Execute loop
+---
+
 Execute the next task from PLAN.md.
 
 Before starting:
-1. Read PLAN.md fully
-2. Before web searching or consulting reference repos, check if AGENTS.md ## Research has relevant @ references and load them with Read tool
+1. Check `git status` for uncommitted changes - a previous iteration may have been interrupted
+   - If changes exist, assess whether they complete a task (commit and mark done) or need to be continued
+2. Read PLAN.md fully
+3. Before web searching or consulting reference repos, check if AGENTS.md ## Research has relevant @ references and load them with Read tool
 
-Pick ONE task from the backlog (skip [MANUAL] and [BLOCKED] items).
-You MAY batch directly related tasks if they are in the same file AND logically coupled.
+Task selection (CRITICAL):
+- Work through phases IN ORDER - complete Phase N before starting Phase N+1
+- Pick the FIRST uncompleted task in the earliest incomplete phase
+- Skip [MANUAL] and [BLOCKED] items
+- You MAY batch directly related tasks ONLY if they are in the same phase, same file, AND logically coupled
 
 Execute:
 1. Make the code changes

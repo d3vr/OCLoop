@@ -9,7 +9,11 @@ export type ActivityEventType =
   | "session_idle"
   | "task"
   | "file_edit"
-  | "error";
+  | "error"
+  | "user_message"
+  | "assistant_message"
+  | "reasoning"
+  | "tool_use";
 
 /**
  * A single activity event in the log
@@ -23,6 +27,10 @@ export interface ActivityEvent {
   type: ActivityEventType;
   /** Human-readable message */
   message: string;
+  /** Whether the event text should be dimmed (muted color) */
+  dimmed?: boolean;
+  /** Additional detail text (e.g. tool command/args) */
+  detail?: string;
 }
 
 /**
@@ -37,7 +45,11 @@ export interface UseActivityLogReturn {
   /** Accessor for the list of activity events (most recent last) */
   events: Accessor<ActivityEvent[]>;
   /** Add a new event to the log */
-  addEvent: (type: ActivityEventType, message: string) => void;
+  addEvent: (
+    type: ActivityEventType,
+    message: string,
+    options?: { dimmed?: boolean; detail?: string }
+  ) => void;
   /** Clear all events from the log */
   clear: () => void;
 }
@@ -79,12 +91,18 @@ export function useActivityLog(): UseActivityLogReturn {
    * Events are appended to the end (most recent last)
    * If the log exceeds MAX_EVENTS, oldest events are removed
    */
-  function addEvent(type: ActivityEventType, message: string): void {
+  function addEvent(
+    type: ActivityEventType,
+    message: string,
+    options?: { dimmed?: boolean; detail?: string }
+  ): void {
     const event: ActivityEvent = {
       id: nextId++,
       timestamp: new Date(),
       type,
       message,
+      dimmed: options?.dimmed,
+      detail: options?.detail,
     };
 
     setEvents((prev) => {

@@ -1,120 +1,297 @@
-# Fix Modal Keybindings and Filter Non-Keyboard Events
+# Command Palette & Dialog UX Overhaul
 
 ## Overview
 
-Two bugs in the input handling system need to be fixed:
+Implement a command palette system matching opencode's UX, including:
+- **DialogSelect**: Searchable list selection with fuzzy filtering, category grouping, keyboard/mouse navigation
+- **DialogConfirm**: Binary confirmation with Cancel/Confirm buttons and left/right arrow navigation
+- **DialogAlert**: Simple notification dialog with OK button
+- **CommandContext**: Command registration and Ctrl+P palette display
 
-1. **Modal keybindings don't work**: When the terminal config modal (`DialogTerminalConfig`) or terminal error modal (`DialogTerminalError`) is displayed, no keyboard input is processed. Pressing Escape, arrow keys, Enter, or any other key has no effect. The modals document keyboard shortcuts in their footers but they don't function.
+Additionally, update all existing dialogs to match the new consistent design patterns:
+- Header: Title (bold, theme.text) + "esc" hint (theme.textMuted) on right
+- Footer keybinds: **Label** key format
+- Backdrop click to dismiss
+- Remove Y/N key prompts in favor of button navigation
 
-2. **Non-keyboard events are logged as keypresses**: Focus events (`\x1b[I` for focus-in, `\x1b[O` for focus-out) and potentially mouse events are logged as "Key pressed" in the debug log, making the keybinding log noisy and misleading.
-
-### Root Cause Analysis
-
-**Issue 1 - Modal keybindings**: In `src/App.tsx:812-814`, when a modal is showing, the input handler returns `false` early:
-
-```typescript
-if (showingTerminalConfig() || terminalError()) {
-   return false
-}
-```
-
-This was intended to "not interfere" with the dialog's input handling, but the dialog components have no way to receive input. `DialogTerminalConfig` creates internal state via `createTerminalConfigState()` which includes a `handleInput()` method, but it's never called because:
-- The component doesn't expose its state externally
-- App.tsx has no reference to call the dialog's input handler
-
-**Issue 2 - Non-keyboard logging**: The input handler logs all sequences unconditionally at `src/App.tsx:801-808`. Focus events and mouse events are terminal control sequences, not user keypresses.
+Commands to implement:
+1. "Copy attach command" - Copies the opencode attach command to clipboard
+2. "Choose default terminal" - Opens terminal configuration dialog
 
 ## Backlog
 
-- [ ] **Filter non-keyboard events from keybinding log**
-  - File: `src/App.tsx` (lines 801-808)
-  - Add condition before `log.debug("keybinding", ...)` to skip:
-    - Focus events: `\x1b[I` (focus in), `\x1b[O` (focus out)
-    - Mouse events X10 mode: sequences starting with `\x1b[M`
-    - Mouse events SGR mode: sequences starting with `\x1b[<`
-  - Create a helper function `isKeyboardInput(sequence: string): boolean` for clarity
-  - Place helper in `src/lib/constants.ts` alongside `KEYS` constant
+### Phase 1: Dependencies & Utilities
 
-- [ ] **Fix terminal config modal input handling**
-  - File: `src/App.tsx`
+- [ ] **Add dependencies and create utility functions**
+  - Add `fuzzysort` and `remeda` to `package.json`
+  - Create `src/lib/locale.ts` with:
+    - `truncate(str, len)` - Truncate string with ellipsis
+    - `titlecase(str)` - Capitalize first letter of each word
+  - Run `bun install` to verify dependencies install correctly
+
+### Phase 2: Theme Updates
+
+- [ ] **Add selectedForeground helper to ThemeContext**
+  - File: `src/context/ThemeContext.tsx`
+  - Add `selectedForeground(theme)` function that calculates contrasting text color for selected items
+  - Uses luminance calculation: if primary color is light, return dark text; if dark, return light text
+  - Export the function alongside existing exports
+
+### Phase 3: Base Dialog Updates
+
+- [ ] **Update base Dialog component**
+  - File: `src/ui/Dialog.tsx`
+  - Remove `title` prop and title bar rendering (dialogs render their own titles)
+  - Add backdrop click-to-dismiss with `onMouseUp` handler
+  - Add `useRenderer` import to check for text selection (don't dismiss if selecting)
+  - Add `onMouseUp` with `stopPropagation` on content box to prevent dismissal when clicking inside
+  - Keep `width`, `height`, `onClose`, `children` props
+
+### Phase 4: New Dialog Components
+
+- [ ] **Create DialogSelect component**
+  - File: `src/ui/DialogSelect.tsx`
+  - Props: `title`, `placeholder?`, `options`, `onSelect?`, `onMove?`, `onFilter?`, `skipFilter?`, `current?`, `keybinds?`, `onClose`
+  - Option interface: `title`, `value`, `description?`, `footer?`, `category?`, `disabled?`, `onSelect?`
+  - Features:
+    - Header with title + "esc" hint
+    - Search input with auto-focus and placeholder "Search"
+    - Fuzzy filtering using fuzzysort on title and category
+    - Category grouping with headers (theme.accent, bold)
+    - Selected item highlighting (backgroundColor: theme.primary)
+    - Current item indicator (● dot)
+    - Scrollable list with dynamic height
+    - "No results found" empty state
+    - Footer keybinds row
+  - Keyboard: ↑/↓ or Ctrl+P/N to navigate, PageUp/Down for 10 items, Enter to select
+  - Mouse: hover to highlight, click to select
+  - Use `remeda` for pipe/filter/groupBy/entries/flatMap
+  - Use `locale.ts` truncate for long titles
+
+- [ ] **Create DialogConfirm component**
+  - File: `src/ui/DialogConfirm.tsx`
+  - Props: `title`, `message`, `confirmLabel?` (default: "Confirm"), `cancelLabel?` (default: "Cancel"), `onConfirm?`, `onCancel?`
+  - Features:
+    - Header with title + "esc" hint
+    - Message in theme.textMuted
+    - Right-aligned button row with Cancel and Confirm
+    - Active button has backgroundColor: theme.primary, text in selectedForeground
+    - Inactive button text in theme.textMuted
+  - Keyboard: ←/→ to switch buttons, Enter to execute, Escape to cancel
+  - Mouse: click buttons to execute
+  - Add static helper: `DialogConfirm.show(dialog, title, message, options?): Promise<boolean>`
+
+- [ ] **Create DialogAlert component**
+  - File: `src/ui/DialogAlert.tsx`
+  - Props: `title`, `message`, `onConfirm?`
+  - Features:
+    - Header with title + "esc" hint
+    - Message in theme.textMuted
+    - Right-aligned "ok" button with theme.primary background
+  - Keyboard: Enter or Escape to dismiss
+  - Mouse: click button to dismiss
+  - Add static helper: `DialogAlert.show(dialog, title, message): Promise<void>`
+
+- [ ] **Create UI component index and exports**
+  - File: `src/ui/index.ts` (create if doesn't exist)
+  - Export Dialog, DialogSelect, DialogConfirm, DialogAlert
+
+### Phase 5: Command Context
+
+- [ ] **Create CommandContext for command palette**
+  - File: `src/context/CommandContext.tsx`
+  - Context value interface:
+    - `register(cb: () => CommandOption[])` - Register commands reactively with auto-cleanup
+    - `show()` - Display command palette using DialogSelect
+    - `trigger(value: string)` - Programmatically trigger command by value
+    - `suspended()` - Accessor for whether keybinds are suspended
+    - `keybinds(enabled: boolean)` - Suspend/resume keybind handling
+  - CommandOption extends DialogSelectOption with `keybind?: string` for footer display
+  - CommandProvider component:
+    - Wraps children with context
+    - Uses `useKeyboard` to listen for Ctrl+P (check for suspended state and no dialogs open)
+    - Shows DialogSelect with registered commands
+  - Add `CTRL_P` constant to `src/lib/constants.ts` (character code 0x10)
+  - Export CommandProvider and useCommand hook
+
+### Phase 6: Update Existing Dialogs
+
+- [ ] **Refactor QuitConfirmation to use DialogConfirm pattern**
+  - File: `src/components/QuitConfirmation.tsx`
+  - Change from `[Y]es [N]o` key prompts to Cancel/Quit buttons
+  - Use DialogConfirm internally or adopt its pattern directly
+  - Props remain: `visible`, `onConfirm`, `onCancel`
+  - Button labels: "Cancel" / "Quit"
+  - Handle own keyboard (←/→/Enter/Escape) via useKeyboard
+  - Remove Y/N key handling from App.tsx for this dialog
+
+- [ ] **Refactor DialogResume to use DialogConfirm pattern**
+  - File: `src/components/DialogResume.tsx`
+  - Change from `[Y] [N]` key prompts to buttons
+  - Button labels: "Start Fresh" / "Resume"
+  - Show iteration number in message
+  - Handle own keyboard via useKeyboard
+  - Remove Y/N key handling from App.tsx for this dialog
+
+- [ ] **Update DialogCompletion styling**
+  - File: `src/components/DialogCompletion.tsx`
+  - Add proper header with title + "esc" hint (or "Q" since Q quits)
+  - Update footer to use new **Label** key pattern: "Quit Q"
+  - Keep existing content structure (summary, manual tasks, blocked tasks, scrollbox)
+
+- [ ] **Update DialogError styling**
+  - File: `src/components/DialogError.tsx`
+  - Add proper header with "Error" title + "esc" hint
+  - Update footer to use new pattern: "Retry R" (if recoverable) + "Quit Q"
+  - Keep existing error badge and message display
+
+- [ ] **Refactor DialogTerminalConfig to use DialogSelect**
   - File: `src/components/DialogTerminalConfig.tsx`
-  - Changes:
-    1. Export `createTerminalConfigState` is already exported, good
-    2. In App.tsx, lift the terminal config state creation to the component level
-       - Call `createTerminalConfigState()` at App.tsx component scope (near line 116 where `showingTerminalConfig` signal is)
-       - Pass required callbacks: `onSelect`, `onCustom`, `onCopy`, `onCancel`
-    3. Modify input handler (line 812-814):
-       - When `showingTerminalConfig()` is true, call `terminalConfigState.handleInput(sequence)` and return its result
-    4. Update `DialogTerminalConfig` component to accept state as a prop instead of creating it internally:
-       - Add new prop `state: TerminalConfigState` to `DialogTerminalConfigProps`
-       - Remove internal `createTerminalConfigState()` call in component
-       - Use passed-in state for rendering
-    5. Update App.tsx render to pass state prop to `DialogTerminalConfig`
+  - Replace custom list rendering with DialogSelect for terminal list view
+  - Terminal options become DialogSelectOption[] with onSelect handlers
+  - Keep custom form view for "Custom..." option
+  - Simplify createTerminalConfigState:
+    - Remove list navigation logic (handled by DialogSelect)
+    - Keep viewState signal for list/custom toggle
+    - Keep custom form state (command, args, activeInput)
+  - Add "Copy" keybind in DialogSelect footer
+  - Remove custom handleInput for list view (DialogSelect handles it)
+  - Keep handleInput only for custom form view
 
-- [ ] **Fix terminal error modal input handling**
-  - File: `src/App.tsx`
+- [ ] **Update DialogTerminalError styling**
   - File: `src/components/DialogTerminalError.tsx`
-  - Changes:
-    1. Create `createTerminalErrorState()` function in `DialogTerminalError.tsx`:
-       - Similar pattern to `createTerminalConfigState()`
-       - Handles: `C/c` for copy, `Escape` for close, `Enter` for close
-       - Returns `{ handleInput: (sequence: string) => boolean }`
-    2. Export the state type and factory function
-    3. In App.tsx, create terminal error state at component level
-    4. Modify input handler (line 812-814):
-       - When `terminalError()` is true, call `terminalErrorState.handleInput(sequence)` and return its result
-    5. Update `DialogTerminalError` props to accept state (optional, may not need UI state since it's display-only)
+  - Add proper header with "Terminal Launch Failed" + "esc" hint
+  - Update footer to use new pattern: "Copy C" + "Close esc"
+  - Keep existing content (terminal name badge, error, config hint, attach command)
 
-- [ ] **[MANUAL] Verify all modal keybindings work**
-  - Launch ocloop in debug mode: `bun run dev -- -d`
-  - Press `T` to open terminal config modal
-  - Test: Arrow keys move selection, Enter selects, C copies, Escape closes
-  - Trigger terminal error (configure invalid terminal in config, press T)
-  - Test: C copies, Escape/Enter closes
-  - Check `.loop.log` - verify focus events and mouse clicks are NOT logged as "Key pressed"
+### Phase 7: Wire Everything in App.tsx
+
+- [ ] **Integrate CommandContext and register commands**
+  - File: `src/App.tsx`
+  - Wrap app with CommandProvider (inside DialogProvider, outside ToastProvider)
+  - Register commands in AppContent:
+    ```typescript
+    command.register(() => [
+      {
+        title: "Copy attach command",
+        value: "copy_attach",
+        category: "Terminal",
+        keybind: "C",
+        onSelect: () => { /* copy attach command, show toast */ },
+      },
+      {
+        title: "Choose default terminal",
+        value: "terminal_config",
+        category: "Terminal",
+        keybind: "T",
+        onSelect: () => { /* show terminal config dialog */ },
+      },
+    ])
+    ```
+  - Commands should only be enabled when there's a session (check sessionId || lastSessionId)
+
+- [ ] **Simplify App.tsx input handler**
+  - File: `src/App.tsx`
+  - Remove Y/N key handling for QuitConfirmation (handled by component)
+  - Remove Y/N key handling for DialogResume (handled by component)
+  - Remove custom input handling delegation for terminal config list view
+  - Keep: Space (pause/resume), Q (quit trigger), S (start), T (terminal launch trigger), error state R
+  - Add: Ctrl+P detection → `command.show()`
+  - Update T key handler: if no session, show toast; if session, call command.trigger("terminal_config") or show config directly
+
+- [ ] **Update component exports**
+  - File: `src/components/index.ts`
+  - Remove createTerminalConfigState export if no longer needed externally
+  - Keep all component exports
+
+### Phase 8: Testing & Verification
+
+- [ ] [MANUAL] **Visual verification of all dialogs**
+  - Run ocloop and verify each dialog matches the new design:
+    - Command palette (Ctrl+P): shows list, search works, navigation works
+    - Terminal config (T key): shows DialogSelect with terminals
+    - Quit confirmation (Q key): shows Cancel/Quit buttons
+    - Resume dialog: shows Start Fresh/Resume buttons
+    - Error dialog: proper styling with retry/quit footer
+    - Completion dialog: proper styling with quit footer
+    - Terminal error: proper styling with copy/close footer
+  - Verify backdrop click dismisses all dialogs
+  - Verify mouse hover/click works in DialogSelect
+  - Verify keyboard navigation in all dialogs
+
+- [ ] [MANUAL] **Test command palette commands**
+  - "Copy attach command": verify copies to clipboard, shows toast
+  - "Choose default terminal": opens terminal config dialog
 
 ## Testing Notes
 
 ### Manual Testing Steps
 
-1. **Test keybinding filter**:
+1. **Start ocloop in debug mode** (no PLAN.md needed):
    ```bash
-   bun run dev -- -d
+   bun run build && ./dist/ocloop --debug
    ```
-   - Switch focus away from terminal and back
-   - Check `.loop.log` - should NOT see focus events logged as "Key pressed"
-   - Click with mouse if supported - should NOT see mouse events logged
 
-2. **Test terminal config modal**:
-   ```bash
-   bun run dev -- -d
-   ```
-   - Press `T` to open terminal config dialog
-   - Press `↓` or `j` - selection should move down
-   - Press `↑` or `k` - selection should move up
-   - Press `C` - should copy attach command (check clipboard)
-   - Press `Escape` - dialog should close
-   - Re-open with `T`, press `Enter` on a terminal - should select and launch/close
+2. **Test Command Palette**:
+   - Press `Ctrl+P` - should open command palette
+   - Type to filter commands
+   - Use ↑/↓ arrows to navigate
+   - Press Enter to select
+   - Press Escape to close
+   - Click backdrop to close
 
-3. **Test terminal error modal**:
-   - Edit `~/.config/ocloop/config.json` to have invalid terminal:
-     ```json
-     { "terminal": { "type": "known", "name": "nonexistent-terminal" } }
-     ```
-   - Run `bun run dev -- -d`, press `T`
-   - Error dialog should appear
-   - Press `C` - should copy attach command
-   - Press `Escape` or `Enter` - dialog should close
+3. **Test Terminal Config**:
+   - Press `T` - should open terminal config (or command palette first time)
+   - Navigate terminal list with arrows
+   - Press `C` to copy attach command
+   - Select "Custom..." to enter custom terminal
 
-### Automated Tests
+4. **Test Quit Confirmation**:
+   - Press `Q` - should show Cancel/Quit buttons
+   - Use ←/→ to switch active button
+   - Press Enter to confirm active button
+   - Press Escape to cancel
 
-Currently no automated tests for input handling. Consider adding in future.
+5. **Test Resume Dialog** (requires previous session state):
+   - Create a `.loop-state.json` file manually or run a real session
+   - Restart ocloop - should show Start Fresh/Resume dialog
+   - Use ←/→ and Enter to navigate
+
+6. **Test Backdrop Click**:
+   - Open any dialog
+   - Click outside the dialog content (on dark backdrop)
+   - Dialog should dismiss
+
+### Existing Tests
+
+Run existing tests to ensure no regressions:
+```bash
+bun test
+```
+
+Tests that may need attention:
+- `src/hooks/useLoopState.test.ts` - Loop state machine tests
+- Any tests that mock dialog interactions
 
 ## File Change Summary
 
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `src/lib/constants.ts` | Modify | Add `isKeyboardInput()` helper function |
-| `src/App.tsx` | Modify | Filter non-keyboard events from log; lift modal state; forward input to modal handlers |
-| `src/components/DialogTerminalConfig.tsx` | Modify | Accept state as prop instead of creating internally |
-| `src/components/DialogTerminalError.tsx` | Modify | Add `createTerminalErrorState()` factory function |
+| File | Action | Description |
+|------|--------|-------------|
+| `package.json` | Modify | Add fuzzysort, remeda dependencies |
+| `src/lib/locale.ts` | Create | Utility functions (truncate, titlecase) |
+| `src/lib/constants.ts` | Modify | Add CTRL_P key constant |
+| `src/context/ThemeContext.tsx` | Modify | Add selectedForeground helper |
+| `src/ui/Dialog.tsx` | Modify | Remove title prop, add backdrop click |
+| `src/ui/DialogSelect.tsx` | Create | Searchable selection dialog |
+| `src/ui/DialogConfirm.tsx` | Create | Confirmation dialog with buttons |
+| `src/ui/DialogAlert.tsx` | Create | Alert/notification dialog |
+| `src/ui/index.ts` | Create | UI component exports |
+| `src/context/CommandContext.tsx` | Create | Command palette context |
+| `src/components/QuitConfirmation.tsx` | Modify | Use DialogConfirm pattern |
+| `src/components/DialogResume.tsx` | Modify | Use DialogConfirm pattern |
+| `src/components/DialogCompletion.tsx` | Modify | Update header/footer styling |
+| `src/components/DialogError.tsx` | Modify | Update header/footer styling |
+| `src/components/DialogTerminalConfig.tsx` | Modify | Use DialogSelect for list |
+| `src/components/DialogTerminalError.tsx` | Modify | Update header/footer styling |
+| `src/components/index.ts` | Modify | Update exports if needed |
+| `src/App.tsx` | Modify | Add CommandProvider, register commands, simplify input handling |

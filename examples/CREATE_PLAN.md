@@ -1,4 +1,4 @@
-Create a detailed implementation plan in PLAN.md with the following structure:
+Based on everything we discussed, create a detailed implementation plan in PLAN.md with the following structure:
 
 ## Overview
 Brief description of what we're implementing and why.
@@ -12,6 +12,7 @@ Chronological tasks as checkboxes. Guidelines:
 - Include file paths and specific locations where changes go
 - For tasks involving external dependencies/APIs, include a verification step
 - Prefix tasks requiring manual/human action with [MANUAL] (device testing, UI verification, external service setup)
+- Check for existing tests related to the code being changed; include tasks to update existing tests or create new ones as appropriate
 
 ## Testing Notes
 Describe how to verify the implementation works (manual steps, existing test commands, etc.)

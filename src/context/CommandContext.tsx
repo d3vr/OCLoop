@@ -46,7 +46,10 @@ export function CommandProvider(props: { children: JSX.Element }) {
         placeholder="Type a command..."
         options={getCommands()}
         onClose={() => dialog.clear()}
-        keybinds={{ "Select": "Enter", "Navigate": "↑/↓" }}
+        keybinds={[
+          { label: "Select", key: "Enter" },
+          { label: "Navigate", key: "↑/↓" }
+        ]}
       />
     ))
   }

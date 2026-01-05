@@ -16,6 +16,13 @@ export interface DialogSelectOption {
   onSelect?: () => void
 }
 
+export interface DialogKeybind {
+  label: string
+  key: string
+  onSelect?: () => void
+  bind?: string | string[]
+}
+
 export interface DialogSelectProps {
   title: string
   placeholder?: string
@@ -25,7 +32,7 @@ export interface DialogSelectProps {
   onFilter?: (filtered: DialogSelectOption[]) => void
   skipFilter?: boolean
   current?: string
-  keybinds?: Record<string, string>
+  keybinds?: DialogKeybind[]
   onClose: () => void
 }
 
@@ -36,11 +43,6 @@ export function DialogSelect(props: DialogSelectProps) {
   const [selectedIndex, setSelectedIndex] = createSignal(0)
   const [viewportStart, setViewportStart] = createSignal(0)
   
-  // Calculate viewport height based on available space minus header/footer
-  // Dialog default height is 10, content padding is 1
-  // Header takes 2 lines, Footer takes 1 line, Search takes 1 line + 1 margin
-  // Remaining for list: ~4 lines. This might need adjustment based on dialog height prop.
-  // We'll hardcode 6 for now as a reasonable default for list items in standard dialog
   const ITEMS_PER_PAGE = 6
 
   // Filter options when search changes
@@ -69,8 +71,20 @@ export function DialogSelect(props: DialogSelectProps) {
   useInput((input, key) => {
     // Escape handled by Dialog backdrop/onClose
     if (key.name === "escape") {
-      // props.onClose() - handled by Dialog
       return
+    }
+
+    // Check custom keybinds
+    if (props.keybinds) {
+      for (const kb of props.keybinds) {
+        if (kb.onSelect && kb.bind) {
+          const binds = Array.isArray(kb.bind) ? kb.bind : [kb.bind]
+          if (binds.some(b => b === input || b === key.name)) {
+            kb.onSelect()
+            return
+          }
+        }
+      }
     }
 
     if (key.name === "return" || key.name === "enter") {
@@ -125,10 +139,6 @@ export function DialogSelect(props: DialogSelectProps) {
     }
   })
 
-  // Group options by category for rendering
-  // Note: we just render flat list but could add headers visually
-  // To keep it simple and consistent with cursor/vscode, we'll just show category in the item
-  
   // Calculate visible items
   const visibleItems = () => {
     return filteredOptions().slice(viewportStart(), viewportStart() + ITEMS_PER_PAGE)
@@ -138,7 +148,7 @@ export function DialogSelect(props: DialogSelectProps) {
     <Dialog 
       onClose={props.onClose} 
       width={60} 
-      height={14} // Increased height for list
+      height={14}
     >
       {/* Header */}
       <box style={{ width: "100%", justifyContent: "space-between", marginBottom: 1 }}>
@@ -222,10 +232,10 @@ export function DialogSelect(props: DialogSelectProps) {
 
       {/* Footer / Keybinds */}
       <box style={{ width: "100%", marginTop: 1, gap: 2 }}>
-        <For each={Object.entries(props.keybinds || {})}>
-          {([label, key]) => (
+        <For each={props.keybinds || []}>
+          {(kb) => (
             <text>
-              <span style={{ bold: true }}>{label}</span> {key}
+              <span style={{ bold: true }}>{kb.label}</span> {kb.key}
             </text>
           )}
         </For>

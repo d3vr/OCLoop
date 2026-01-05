@@ -828,58 +828,12 @@ function AppContent(props: AppProps) {
 
       // If showing modals/dialogs, don't interfere unless it's global shortcuts that override them
       // But typically we want the dialogs to handle their own input.
-      if (showingTerminalConfig()) {
-         return terminalConfigState.handleInput(sequence)
-      }
       
       if (terminalError()) {
          return terminalErrorState.handleInput(sequence)
       }
 
       // Ctrl+\ (0x1c) - always handle - REMOVED, now handling T in specific states
-
-
-      // If showing quit confirmation modal
-      if (loop.showingQuitConfirmation()) {
-        if (
-          sequence === KEYS.Y_LOWER ||
-          sequence === KEYS.Y_UPPER
-        ) {
-          handleQuit()
-          return true
-        }
-        if (
-          sequence === KEYS.N_LOWER ||
-          sequence === KEYS.N_UPPER ||
-          sequence === KEYS.ESCAPE
-        ) {
-          loop.hideQuitConfirmation()
-          return true
-        }
-        // Consume all other input while modal is shown
-        return true
-      }
-
-      // If showing resume dialog
-      if (showingResumeDialog()) {
-        if (
-          sequence === KEYS.Y_LOWER ||
-          sequence === KEYS.Y_UPPER
-        ) {
-          handleResume()
-          return true
-        }
-        if (
-          sequence === KEYS.N_LOWER ||
-          sequence === KEYS.N_UPPER ||
-          sequence === KEYS.ESCAPE
-        ) {
-          handleStartFresh()
-          return true
-        }
-        // Consume all other input while dialog is shown
-        return true
-      }
 
       // Debug mode handling
       if (loop.isDebug()) {

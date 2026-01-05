@@ -978,11 +978,6 @@ function AppContent(props: AppProps) {
       if (sequence === KEYS.SPACE) {
         if (loop.canPause()) {
           loop.dispatch({ type: "toggle_pause" })
-
-          // If resuming from paused state, start next iteration
-          if (loop.state().type === "running") {
-            startIteration()
-          }
         }
         return true
       }

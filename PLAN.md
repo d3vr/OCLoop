@@ -23,44 +23,44 @@ This plan addresses three critical issues in ocloop:
 
 ### SSE Connection Fix
 
-- [ ] **Update `useSSE` hook to use reactive URL accessor**
+- [x] **Update `useSSE` hook to use reactive URL accessor**
   - File: `src/hooks/useSSE.ts`
   - Change `UseSSEOptions.url` type from `string` to `Accessor<string>` (line 36)
   - Update destructuring in `useSSE()` to keep `url` as accessor (line 94)
   - Update `connect()` function to call `url()` to get current value (lines 207, 211-212)
   - Add validation: if `url()` is empty, log warning and return early from `connect()`
 
-- [ ] **Update App.tsx to pass URL as accessor**
+- [x] **Update App.tsx to pass URL as accessor**
   - File: `src/App.tsx`
   - Change line 228 from `url: server.url() || ""` to `url: () => server.url() || ""`
 
 ### Quit Keybinding Fix
 
-- [ ] **Allow quit from pausing state**
+- [x] **Allow quit from pausing state**
   - File: `src/hooks/useLoopState.ts`
   - Add `if (s.type === "pausing") return true` to `canQuit()` memo (around line 272)
 
-- [ ] **Update Dashboard keybind hints for pausing state**
+- [x] **Update Dashboard keybind hints for pausing state**
   - File: `src/components/Dashboard.tsx`
   - Change line 142 from `return [{ key: "", desc: "Waiting for task..." }]`
   - To: `return [{ key: "", desc: "Waiting for task..." }, { key: "Q", desc: "quit" }]`
 
-- [ ] **Add test for quit from pausing state**
+- [x] **Add test for quit from pausing state**
   - File: `src/hooks/useLoopState.test.ts`
   - Add test case in `canQuit` describe block verifying `canQuit` returns true for pausing state
 
 ### Verbose Flag Implementation
 
-- [ ] **Add `verbose` to CLI types**
+- [x] **Add `verbose` to CLI types**
   - File: `src/types.ts`
   - Add `verbose?: boolean` to `CLIArgs` interface (around line 68)
 
-- [ ] **Parse `--verbose` / `-v` flag in CLI**
+- [x] **Parse `--verbose` / `-v` flag in CLI**
   - File: `src/index.tsx`
   - Add case for `-v` and `--verbose` in `parseArgs()` switch statement (around line 100)
   - Update help text in `showHelp()` to document the flag (around line 27)
 
-- [ ] **Conditionally log keyboard events based on verbose flag**
+- [x] **Conditionally log keyboard events based on verbose flag**
   - File: `src/App.tsx`
   - Wrap keyboard debug logging (lines 856-864) with `if (props.verbose)` check
 

@@ -31,7 +31,7 @@ Commands to implement:
 
 ### Phase 2: Theme Updates
 
-- [ ] **Add selectedForeground helper to ThemeContext**
+- [x] **Add selectedForeground helper to ThemeContext**
   - File: `src/context/ThemeContext.tsx`
   - Add `selectedForeground(theme)` function that calculates contrasting text color for selected items
   - Uses luminance calculation: if primary color is light, return dark text; if dark, return light text
@@ -39,7 +39,7 @@ Commands to implement:
 
 ### Phase 3: Base Dialog Updates
 
-- [ ] **Update base Dialog component**
+- [x] **Update base Dialog component**
   - File: `src/ui/Dialog.tsx`
   - Remove `title` prop and title bar rendering (dialogs render their own titles)
   - Add backdrop click-to-dismiss with `onMouseUp` handler
@@ -49,7 +49,7 @@ Commands to implement:
 
 ### Phase 4: New Dialog Components
 
-- [ ] **Create DialogSelect component**
+- [x] **Create DialogSelect component**
   - File: `src/ui/DialogSelect.tsx`
   - Props: `title`, `placeholder?`, `options`, `onSelect?`, `onMove?`, `onFilter?`, `skipFilter?`, `current?`, `keybinds?`, `onClose`
   - Option interface: `title`, `value`, `description?`, `footer?`, `category?`, `disabled?`, `onSelect?`
@@ -68,7 +68,7 @@ Commands to implement:
   - Use `remeda` for pipe/filter/groupBy/entries/flatMap
   - Use `locale.ts` truncate for long titles
 
-- [ ] **Create DialogConfirm component**
+- [x] **Create DialogConfirm component**
   - File: `src/ui/DialogConfirm.tsx`
   - Props: `title`, `message`, `confirmLabel?` (default: "Confirm"), `cancelLabel?` (default: "Cancel"), `onConfirm?`, `onCancel?`
   - Features:
@@ -81,7 +81,7 @@ Commands to implement:
   - Mouse: click buttons to execute
   - Add static helper: `DialogConfirm.show(dialog, title, message, options?): Promise<boolean>`
 
-- [ ] **Create DialogAlert component**
+- [x] **Create DialogAlert component**
   - File: `src/ui/DialogAlert.tsx`
   - Props: `title`, `message`, `onConfirm?`
   - Features:
@@ -92,13 +92,13 @@ Commands to implement:
   - Mouse: click button to dismiss
   - Add static helper: `DialogAlert.show(dialog, title, message): Promise<void>`
 
-- [ ] **Create UI component index and exports**
+- [x] **Create UI component index and exports**
   - File: `src/ui/index.ts` (create if doesn't exist)
   - Export Dialog, DialogSelect, DialogConfirm, DialogAlert
 
 ### Phase 5: Command Context
 
-- [ ] **Create CommandContext for command palette**
+- [x] **Create CommandContext for command palette**
   - File: `src/context/CommandContext.tsx`
   - Context value interface:
     - `register(cb: () => CommandOption[])` - Register commands reactively with auto-cleanup

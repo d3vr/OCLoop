@@ -18,7 +18,7 @@ import { useLoopStats } from "./hooks/useLoopStats"
 import { useActivityLog } from "./hooks/useActivityLog"
 import { log } from "./lib/debug-logger"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile, getCurrentTask } from "./lib/plan-parser"
-import { KEYS, DEFAULTS } from "./lib/constants"
+import { KEYS, DEFAULTS, isKeyboardInput } from "./lib/constants"
 import { shutdownManager } from "./lib/shutdown"
 import {
   loadLoopState,
@@ -47,7 +47,9 @@ import {
   DialogError,
   ActivityLog,
   DialogTerminalConfig,
+  createTerminalConfigState,
   DialogTerminalError,
+  createTerminalErrorState,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
@@ -795,24 +797,45 @@ function AppContent(props: AppProps) {
      setTerminalError(null)
   }
 
+  // Create state for terminal config dialog
+  const terminalConfigState = createTerminalConfigState(
+    availableTerminals,
+    onConfigSelect,
+    onConfigCustom,
+    onConfigCopy,
+    () => setShowingTerminalConfig(false)
+  )
+
+  // Create state for terminal error dialog
+  const terminalErrorState = createTerminalErrorState(
+     onErrorCopy,
+     () => setTerminalError(null)
+  )
+
   // Input handler for keybindings
   onMount(() => {
     const inputHandler = (sequence: string): boolean => {
       // Log key press
-      log.debug("keybinding", "Key pressed", { 
-        key: sequence, 
-        hex: "0x" + sequence.charCodeAt(0).toString(16).toUpperCase(),
-        state: loop.state().type,
-        sessionId: sessionId(),
-        lastSessionId: lastSessionId()
-      })
+      if (isKeyboardInput(sequence)) {
+        log.debug("keybinding", "Key pressed", { 
+          key: sequence, 
+          hex: "0x" + sequence.charCodeAt(0).toString(16).toUpperCase(),
+          state: loop.state().type,
+          sessionId: sessionId(),
+          lastSessionId: lastSessionId()
+        })
+      }
 
       // If showing modals/dialogs, don't interfere unless it's global shortcuts that override them
       // But typically we want the dialogs to handle their own input.
-      if (showingTerminalConfig() || terminalError()) {
-         return false
+      if (showingTerminalConfig()) {
+         return terminalConfigState.handleInput(sequence)
       }
-    
+      
+      if (terminalError()) {
+         return terminalErrorState.handleInput(sequence)
+      }
+
       // Ctrl+\ (0x1c) - always handle - REMOVED, now handling T in specific states
 
 
@@ -991,11 +1014,7 @@ function AppContent(props: AppProps) {
       {/* Overlays */}
       <Show when={showingTerminalConfig()}>
          <DialogTerminalConfig
-            availableTerminals={availableTerminals()}
-            attachCommand={(sessionId() || lastSessionId()) && server.url() ? getAttachCommand(server.url()!, (sessionId() || lastSessionId())!) : ""}
-            onSelect={onConfigSelect}
-            onCustom={onConfigCustom}
-            onCopy={onConfigCopy}
+            state={terminalConfigState}
             onCancel={() => setShowingTerminalConfig(false)}
          />
       </Show>

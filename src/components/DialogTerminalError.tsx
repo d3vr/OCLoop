@@ -14,6 +14,38 @@ import { useTheme } from "../context/ThemeContext"
 import { getConfigPath } from "../lib/config"
 
 /**
+ * State exposed by the dialog for input handling
+ */
+export interface TerminalErrorState {
+  handleInput: (sequence: string) => boolean
+}
+
+/**
+ * Create state and input handling for terminal error dialog
+ */
+export function createTerminalErrorState(
+  onCopy: () => void,
+  onClose: () => void,
+): TerminalErrorState {
+  
+  const handleInput = (sequence: string): boolean => {
+    // C - copy
+    if (sequence === "c" || sequence === "C") {
+      onCopy()
+      return true
+    }
+    // Escape or Enter - close
+    if (sequence === "\x1b" || sequence === "\r" || sequence === "\n") {
+      onClose()
+      return true
+    }
+    return true // Consume all other input
+  }
+
+  return { handleInput }
+}
+
+/**
  * Props for the DialogTerminalError component
  */
 export interface DialogTerminalErrorProps {

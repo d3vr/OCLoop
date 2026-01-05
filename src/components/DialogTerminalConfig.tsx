@@ -19,24 +19,6 @@ import { useTheme } from "../context/ThemeContext"
 import type { KnownTerminal } from "../lib/terminal-launcher"
 
 /**
- * Props for the DialogTerminalConfig component
- */
-export interface DialogTerminalConfigProps {
-  /** List of available (installed) terminals */
-  availableTerminals: KnownTerminal[]
-  /** The attach command to display/copy */
-  attachCommand: string
-  /** Callback when a known terminal is selected */
-  onSelect: (terminal: KnownTerminal) => void
-  /** Callback when custom terminal is configured */
-  onCustom: (command: string, args: string) => void
-  /** Callback when copy command is requested */
-  onCopy: () => void
-  /** Callback when dialog should close */
-  onCancel: () => void
-}
-
-/**
  * View state for the dialog
  */
 export type TerminalConfigViewState = "list" | "custom"
@@ -52,6 +34,16 @@ export interface TerminalConfigState {
   activeInput: () => "command" | "args"
   listItems: () => Array<KnownTerminal | { name: string; command: string; args: string[] }>
   handleInput: (sequence: string) => boolean
+}
+
+/**
+ * Props for the DialogTerminalConfig component
+ */
+export interface DialogTerminalConfigProps {
+  /** The state object containing view logic and input handlers */
+  state: TerminalConfigState
+  /** Callback when dialog should close (e.g. clicking outside) */
+  onCancel: () => void
 }
 
 /**
@@ -186,26 +178,14 @@ export function createTerminalConfigState(
  * @example
  * ```tsx
  * <DialogTerminalConfig
- *   availableTerminals={[{ name: "alacritty", command: "alacritty", args: ["-e", "{cmd}"] }]}
- *   attachCommand="opencode attach http://localhost:3000 --session abc123"
- *   onSelect={(terminal) => saveAndLaunch(terminal)}
- *   onCustom={(cmd, args) => saveCustomAndLaunch(cmd, args)}
- *   onCopy={() => copyToClipboard()}
+ *   state={terminalConfigState}
  *   onCancel={() => closeDialog()}
  * />
  * ```
  */
 export function DialogTerminalConfig(props: DialogTerminalConfigProps) {
   const { theme } = useTheme()
-
-  // Create state for this dialog instance
-  const state = createTerminalConfigState(
-    () => props.availableTerminals,
-    props.onSelect,
-    props.onCustom,
-    props.onCopy,
-    props.onCancel,
-  )
+  const state = props.state
 
   // Calculate dialog dimensions
   const dialogWidth = 55

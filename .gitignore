@@ -1,9 +1,4 @@
 node_modules/
 dist/
-bun.lock
-bun.lockb
 .loop-*
 .opencode
-.DS_Store
-*.log
-.loop-state.json

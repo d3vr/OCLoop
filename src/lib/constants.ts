@@ -20,6 +20,28 @@ export const KEYS = {
 } as const
 
 /**
+ * Check if input sequence is a keyboard event (vs mouse/focus event)
+ */
+export function isKeyboardInput(sequence: string): boolean {
+  // Focus events: \x1b[I (focus in), \x1b[O (focus out)
+  if (sequence === "\x1b[I" || sequence === "\x1b[O") {
+    return false
+  }
+  
+  // Mouse events X10 mode: sequences starting with \x1b[M
+  if (sequence.startsWith("\x1b[M")) {
+    return false
+  }
+  
+  // Mouse events SGR mode: sequences starting with \x1b[<
+  if (sequence.startsWith("\x1b[<")) {
+    return false
+  }
+
+  return true
+}
+
+/**
  * Default file paths
  */
 export const DEFAULTS = {

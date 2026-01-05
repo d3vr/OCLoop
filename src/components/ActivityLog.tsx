@@ -85,22 +85,26 @@ function formatTime(date: Date): string {
 export function ActivityLog(props: ActivityLogProps) {
   const { theme } = useTheme();
 
-  // Get color for event type
-  const getEventColor = (event: ActivityEvent): string => {
-    if (event.dimmed) {
-      return theme().textMuted;
-    }
-
-    switch (event.type) {
+  // Get color for event label
+  const getLabelColor = (type: ActivityEventType): string => {
+    switch (type) {
+      case "user_message":
+        return theme().info;
+      case "assistant_message":
+        return theme().success;
+      case "reasoning":
+        return theme().warning;
+      case "tool_use":
+      case "task":
+        return theme().primary;
+      case "file_read":
+      case "file_edit":
+        return theme().info;
+      case "error":
+        return theme().error;
       case "session_start":
       case "session_idle":
         return theme().textMuted;
-      case "task":
-        return theme().primary;
-      case "file_edit":
-        return theme().text;
-      case "error":
-        return theme().error;
       default:
         return theme().text;
     }
@@ -156,18 +160,32 @@ export function ActivityLog(props: ActivityLogProps) {
         }}
       >
         <For each={displayEvents()}>
-          {(event) => (
-            <text>
-              <span style={{ fg: theme().textMuted }}>
-                {formatTime(event.timestamp)}
-              </span>
-              <span style={{ fg: getEventColor(event) }}>
+          {(event) => {
+            const content =
+              event.type === "tool_use" && event.detail
+                ? `${event.detail}: ${event.message}`
+                : event.message;
+
+            return (
+              <text>
+                <span style={{ fg: theme().textMuted }}>
+                  {formatTime(event.timestamp)}
+                </span>
                 {"  "}
-                {getEventLabel(event.type)} {truncateText(event.message, 40)}
-                {event.detail ? ` ${event.detail}` : ""}
-              </span>
-            </text>
-          )}
+                <span style={{ fg: getLabelColor(event.type) }}>
+                  {getEventLabel(event.type)}
+                </span>
+                <span
+                  style={{
+                    fg: event.dimmed ? theme().textMuted : theme().text,
+                  }}
+                >
+                  {" "}
+                  {truncateText(content, 40)}
+                </span>
+              </text>
+            );
+          }}
         </For>
       </box>
     </box>

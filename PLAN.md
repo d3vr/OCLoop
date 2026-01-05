@@ -89,7 +89,7 @@ Labels are color-coded:
 
 ### Phase 5: Replace Icons with Labeled Brackets
 
-- [ ] Update `src/components/ActivityLog.tsx`
+- [x] Update `src/components/ActivityLog.tsx`
   - Rename `getEventIcon()` to `getEventLabel()` (line ~21-45)
   - Update return values:
     - `session_start` → `"[start]"`
@@ -106,7 +106,7 @@ Labels are color-coded:
 
 ### Phase 6: Color-Code Labels
 
-- [ ] Update `src/components/ActivityLog.tsx`
+- [x] Update `src/components/ActivityLog.tsx`
   - Add new function `getLabelColor(type: ActivityEventType): string` that returns:
     - `user_message` → `theme().info`
     - `assistant_message` → `theme().success`

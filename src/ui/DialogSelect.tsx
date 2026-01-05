@@ -1,7 +1,6 @@
 import { createSignal, createEffect, onMount, For, Show } from "solid-js"
 import { useInput } from "../hooks/useInput"
 import fuzzysort from "fuzzysort"
-import * as R from "remeda"
 import { Dialog } from "./Dialog"
 import { useTheme, selectedForeground } from "../context/ThemeContext"
 import { truncate } from "../lib/locale"

@@ -71,20 +71,8 @@ export function DialogSelect(props: DialogSelectProps) {
   useInput((input, key) => {
     // Escape handled by Dialog backdrop/onClose
     if (key.name === "escape") {
+      props.onClose()
       return
-    }
-
-    // Check custom keybinds
-    if (props.keybinds) {
-      for (const kb of props.keybinds) {
-        if (kb.onSelect && kb.bind) {
-          const binds = Array.isArray(kb.bind) ? kb.bind : [kb.bind]
-          if (binds.some(b => b === input || b === key.name)) {
-            kb.onSelect()
-            return
-          }
-        }
-      }
     }
 
     if (key.name === "return" || key.name === "enter") {
@@ -137,6 +125,22 @@ export function DialogSelect(props: DialogSelectProps) {
     if (key.name === "backspace") {
       setSearch(s => s.slice(0, -1))
     }
+
+    // Check custom keybinds
+    if (props.keybinds) {
+      const isPrintable = input.length === 1 && !key.ctrl && !key.meta
+      if (key.ctrl || key.meta || !isPrintable) {
+        for (const kb of props.keybinds) {
+          if (kb.onSelect && kb.bind) {
+            const binds = Array.isArray(kb.bind) ? kb.bind : [kb.bind]
+            if (binds.some(b => b === input || b === key.name)) {
+              kb.onSelect()
+              return
+            }
+          }
+        }
+      }
+    }
   })
 
   // Calculate visible items
@@ -151,7 +155,7 @@ export function DialogSelect(props: DialogSelectProps) {
       height={14}
     >
       {/* Header */}
-      <box style={{ width: "100%", justifyContent: "space-between", marginBottom: 1 }}>
+      <box style={{ width: "100%", justifyContent: "space-between", marginBottom: 1, flexDirection: "row" }}>
         <text>
           <span style={{ bold: true, fg: theme().text }}>{props.title}</span>
         </text>
@@ -202,7 +206,7 @@ export function DialogSelect(props: DialogSelectProps) {
                     backgroundColor: isSelected() ? theme().primary : undefined,
                   }}
                 >
-                  <box style={{ width: "100%", justifyContent: "space-between" }}>
+                  <box style={{ width: "100%", justifyContent: "space-between", flexDirection: "row" }}>
                     <text>
                       <span style={{ 
                         fg: isSelected() ? selectedForeground(theme()) : theme().text 

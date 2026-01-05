@@ -13,7 +13,8 @@ export type ActivityEventType =
   | "user_message"
   | "assistant_message"
   | "reasoning"
-  | "tool_use";
+  | "tool_use"
+  | "file_read";
 
 /**
  * A single activity event in the log

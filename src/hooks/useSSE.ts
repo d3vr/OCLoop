@@ -1,6 +1,7 @@
 import { createSignal, onMount, onCleanup, type Accessor } from "solid-js"
 import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 import type { Event, Todo, SessionStatus } from "@opencode-ai/sdk/v2"
+import { log } from "../lib/debug-logger"
 
 /**
  * SSE connection status
@@ -110,6 +111,8 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
    * Process an incoming SSE event and call appropriate handlers
    */
   function processEvent(event: Event): void {
+    log.debug("sse", "Event received", { type: event.type, sessionId: sessionId?.(), data: event.properties })
+
     // Call the generic handler first
     if (handlers.onAnyEvent) {
       handlers.onAnyEvent(event)
@@ -200,6 +203,8 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
     setError(undefined)
 
     abortController = new AbortController()
+    
+    log.info("sse", "Connecting", { url, directory })
 
     try {
       // Create the SDK client
@@ -220,6 +225,7 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
       }
 
       setStatus("connected")
+      log.info("sse", "Connected")
 
       // Process events from the stream
       for await (const event of events.stream) {
@@ -243,6 +249,7 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
       const connectionError = err instanceof Error ? err : new Error(String(err))
       setError(connectionError)
       setStatus("error")
+      log.error("sse", "Connection error", connectionError)
 
       if (onError) {
         onError(connectionError)
@@ -281,6 +288,7 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
    * Disconnect from the SSE stream
    */
   function disconnect(): void {
+    log.info("sse", "Disconnecting")
     shouldReconnect = false
 
     if (reconnectTimeout) {

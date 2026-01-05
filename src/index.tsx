@@ -4,6 +4,7 @@ import { render } from "@opentui/solid"
 import { App } from "./App"
 import { DEFAULTS } from "./lib/constants"
 import type { CLIArgs } from "./types"
+import { log } from "./lib/debug-logger"
 
 /**
  * Display help message and exit
@@ -155,6 +156,21 @@ async function validatePrerequisites(args: CLIArgs): Promise<void> {
 async function main(): Promise<void> {
   // Parse command line arguments
   const args = parseArgs(process.argv.slice(2))
+
+  // Initialize logging
+  log.sessionStart({ debug: !!args.debug, cwd: process.cwd() })
+  
+  log.info("startup", "CLI arguments", { 
+    plan: args.planFile, 
+    prompt: args.promptFile, 
+    debug: args.debug, 
+    run: args.run 
+  })
+
+  // Log plan file status
+  const planPath = args.planFile || DEFAULTS.PLAN_FILE
+  const planFileExists = await Bun.file(planPath).exists()
+  log.info("startup", "Plan file check", { path: planPath, exists: planFileExists })
 
   // Validate prerequisites before rendering
   await validatePrerequisites(args)

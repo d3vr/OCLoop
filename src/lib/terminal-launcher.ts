@@ -6,6 +6,7 @@
  */
 
 import type { TerminalConfig } from "./config"
+import { log } from "./debug-logger"
 
 /**
  * A known terminal emulator with its launch configuration
@@ -97,7 +98,13 @@ export async function detectInstalledTerminals(): Promise<KnownTerminal[]> {
     })),
   )
 
-  return results.filter((r) => r.exists).map((r) => r.terminal)
+  const installed = results.filter((r) => r.exists).map((r) => r.terminal)
+  log.info("terminal", "Detected installed terminals", { 
+    count: installed.length, 
+    names: installed.map(t => t.name) 
+  })
+  
+  return installed
 }
 
 /**
@@ -159,11 +166,14 @@ export async function launchTerminal(
     // Verify the command exists
     const exists = await commandExists(command)
     if (!exists) {
+      log.warn("terminal", "Command not found", { command })
       return {
         success: false,
         error: `Terminal command not found: ${command}`,
       }
     }
+
+    log.info("terminal", "Spawning terminal", { command, args })
 
     // Spawn the terminal as a detached process
     // Using 'inherit' for stdio so the terminal can run independently
@@ -175,12 +185,16 @@ export async function launchTerminal(
 
     // Unref the process so it doesn't keep the parent alive
     proc.unref()
+    
+    log.info("terminal", "Terminal spawned successfully")
 
     return { success: true }
   } catch (err) {
+    const error = err instanceof Error ? err.message : String(err)
+    log.error("terminal", "Failed to launch terminal", error)
     return {
       success: false,
-      error: err instanceof Error ? err.message : String(err),
+      error,
     }
   }
 }

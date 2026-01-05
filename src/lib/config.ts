@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { log } from "./debug-logger"
 
 /**
  * Terminal configuration for a known terminal emulator
@@ -65,14 +66,18 @@ export function loadConfig(): OcloopConfig {
   const configPath = getConfigPath()
 
   if (!existsSync(configPath)) {
+    log.debug("config", "No config file found, using default")
     return {}
   }
 
   try {
     const content = readFileSync(configPath, "utf-8")
-    return JSON.parse(content) as OcloopConfig
-  } catch {
+    const config = JSON.parse(content) as OcloopConfig
+    log.info("config", "Loaded config", config)
+    return config
+  } catch (err) {
     // If parsing fails, return empty config
+    log.warn("config", "Failed to load config, using default", err)
     return {}
   }
 }
@@ -91,6 +96,7 @@ export function saveConfig(config: OcloopConfig): void {
   }
 
   writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8")
+  log.info("config", "Saved config", config)
 }
 
 /**

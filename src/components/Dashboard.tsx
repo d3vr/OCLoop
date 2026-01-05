@@ -124,13 +124,13 @@ export function Dashboard(props: DashboardProps) {
         ]
       case "running":
         return [
-          { key: "Ctrl+\\", desc: "terminal" },
+          { key: "T", desc: "terminal" },
           { key: "Space", desc: "pause" },
           { key: "Q", desc: "quit" },
         ]
       case "paused":
         return [
-          { key: "Ctrl+\\", desc: "terminal" },
+          { key: "T", desc: "terminal" },
           { key: "Space", desc: "resume" },
           { key: "Q", desc: "quit" },
         ]
@@ -150,7 +150,7 @@ export function Dashboard(props: DashboardProps) {
         // Detached in debug mode
         if (state.sessionId) {
           return [
-            { key: "Ctrl+\\", desc: "terminal" },
+            { key: "T", desc: "terminal" },
             { key: "N", desc: "new session" },
             { key: "Q", desc: "quit" },
           ]

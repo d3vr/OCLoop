@@ -2,7 +2,7 @@
  * Keybinding constants
  */
 export const KEYS = {
-  CTRL_BACKSLASH: "\x1c", // Ctrl+\ for toggle attach/detach
+
   SPACE: " ",
   ESCAPE: "\x1b",
   Q_LOWER: "q",
@@ -15,6 +15,8 @@ export const KEYS = {
   R_UPPER: "R",
   S_LOWER: "s",
   S_UPPER: "S",
+  T_LOWER: "t",
+  T_UPPER: "T",
 } as const
 
 /**

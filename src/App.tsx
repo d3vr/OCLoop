@@ -16,6 +16,7 @@ import { useSSE } from "./hooks/useSSE"
 import { useLoopState } from "./hooks/useLoopState"
 import { useLoopStats } from "./hooks/useLoopStats"
 import { useActivityLog } from "./hooks/useActivityLog"
+import { log } from "./lib/debug-logger"
 import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile, getCurrentTask } from "./lib/plan-parser"
 import { KEYS, DEFAULTS } from "./lib/constants"
 import { shutdownManager } from "./lib/shutdown"
@@ -148,6 +149,8 @@ function AppContent(props: AppProps) {
         prev.type === "ready")
     ) {
       stats.startIteration()
+      log.iterationStart(state.iteration)
+      log.debug("state", "Iteration started", { sessionId: state.sessionId, iteration: state.iteration })
       // Refresh current task from plan file as fallback for SSE todo updates
       refreshCurrentTask()
     }
@@ -168,6 +171,8 @@ function AppContent(props: AppProps) {
       (state.type === "running" && !state.sessionId && prev.type === "running" && prev.sessionId) ||
       (state.type === "paused" && prev.type === "pausing")
     ) {
+      log.iterationEnd(state.iteration)
+      log.debug("state", "Iteration ended", { iteration: state.iteration })
       stats.endIteration()
       
       // Save state after iteration completes
@@ -418,8 +423,10 @@ function AppContent(props: AppProps) {
    * Just creates a session for manual interaction
    */
   async function createDebugSession(): Promise<void> {
+    log.info("session", "Creating debug session...")
     const url = server.url()
     if (!url) {
+      log.error("session", "Cannot create debug session: server not ready")
       console.error("Cannot create debug session: server not ready")
       return
     }
@@ -436,6 +443,8 @@ function AppContent(props: AppProps) {
       }
 
       const newSessionId = result.data.id
+      
+      log.info("session", "Debug session created", { sessionId: newSessionId })
 
       // Dispatch new_session to update debug state with session ID
       loop.dispatch({ type: "new_session", sessionId: newSessionId })
@@ -445,6 +454,7 @@ function AppContent(props: AppProps) {
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
+      log.error("session", "Failed to create debug session", errorMessage)
       loop.dispatch({
         type: "error",
         source: "api",
@@ -459,6 +469,7 @@ function AppContent(props: AppProps) {
    * @param exitCode - Exit code to use (default: 0)
    */
   async function handleQuit(exitCode: number = 0): Promise<void> {
+    log.info("app", "Quit initiated", { exitCode, currentSessionId: sessionId() })
     // Save state before quitting so user can resume
     const iteration = loop.iteration()
     if (iteration > 0) {
@@ -498,6 +509,7 @@ function AppContent(props: AppProps) {
   // Server ready effect - transition to ready state and connect SSE
   createEffect(() => {
     if (server.status() === "ready" && loop.state().type === "starting") {
+      log.info("server", "Ready", { url: server.url(), debug: props.debug })
       // Server is ready, transition to appropriate state
       if (props.debug) {
         // Debug mode - transition to debug state
@@ -676,6 +688,7 @@ function AppContent(props: AppProps) {
    * Launch terminal or show config dialog
    */
   async function handleTerminalLaunch(sid: string) {
+    log.debug("terminal", "Handle launch request", { sessionId: sid, hasConfig: hasTerminalConfig(ocloopConfig()) })
     const config = ocloopConfig()
     
     // If no config, show config dialog
@@ -698,8 +711,16 @@ function AppContent(props: AppProps) {
      if (!url) return
      
      const attachCmd = getAttachCommand(url, sid)
+     log.info("terminal", "Launching", { 
+        sessionId: sid, 
+        terminal: terminalConfig, 
+        command: attachCmd 
+     })
+
      const result = await launchTerminal(terminalConfig, attachCmd)
      
+     log.info("terminal", "Launch result", result)
+
      if (!result.success) {
         setTerminalError({
            name: terminalConfig.type === 'known' ? terminalConfig.name : 'Custom',
@@ -777,22 +798,23 @@ function AppContent(props: AppProps) {
   // Input handler for keybindings
   onMount(() => {
     const inputHandler = (sequence: string): boolean => {
+      // Log key press
+      log.debug("keybinding", "Key pressed", { 
+        key: sequence, 
+        hex: "0x" + sequence.charCodeAt(0).toString(16).toUpperCase(),
+        state: loop.state().type,
+        sessionId: sessionId(),
+        lastSessionId: lastSessionId()
+      })
+
       // If showing modals/dialogs, don't interfere unless it's global shortcuts that override them
       // But typically we want the dialogs to handle their own input.
       if (showingTerminalConfig() || terminalError()) {
          return false
       }
     
-      // Ctrl+\ (0x1c) - always handle
-      if (sequence === KEYS.CTRL_BACKSLASH) {
-        const sid = sessionId() || lastSessionId()
-        if (sid) {
-           handleTerminalLaunch(sid)
-        } else {
-           toast.show({ variant: "info", message: "No active session to attach to" })
-        }
-        return true
-      }
+      // Ctrl+\ (0x1c) - always handle - REMOVED, now handling T in specific states
+
 
       // If showing quit confirmation modal
       if (loop.showingQuitConfirmation()) {
@@ -850,6 +872,16 @@ function AppContent(props: AppProps) {
           loop.showQuitConfirmation()
           return true
         }
+
+        if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
+           const sid = sessionId() || lastSessionId()
+           if (sid) {
+              handleTerminalLaunch(sid)
+           } else {
+              toast.show({ variant: "info", message: "No active session to attach to" })
+           }
+           return true
+        }
         
         // Consume other input in debug mode when detached
         return true
@@ -879,6 +911,16 @@ function AppContent(props: AppProps) {
       }
 
       // Detached - handle our keybindings
+      if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
+         const sid = sessionId() || lastSessionId()
+         if (sid) {
+            handleTerminalLaunch(sid)
+         } else {
+            toast.show({ variant: "info", message: "No active session to attach to" })
+         }
+         return true
+      }
+
       if (sequence === KEYS.SPACE) {
         if (loop.canPause()) {
           loop.dispatch({ type: "toggle_pause" })

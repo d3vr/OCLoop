@@ -1,5 +1,6 @@
 import { readFile, writeFile, unlink, access } from "node:fs/promises";
 import { join } from "node:path";
+import { log } from "./debug-logger";
 
 const LOOP_STATE_FILE = ".loop-state.json";
 const GITIGNORE_FILE = ".gitignore";
@@ -37,11 +38,14 @@ export async function loadLoopState(): Promise<LoopStateFile | null> {
       "updatedAt" in data &&
       typeof data.updatedAt === "number"
     ) {
+      log.info("state", "Loaded loop state", data);
       return data as LoopStateFile;
     }
+    log.debug("state", "Invalid loop state file");
     return null;
   } catch {
     // File not found or parse error
+    log.debug("state", "No loop state found");
     return null;
   }
 }
@@ -60,6 +64,7 @@ export async function saveLoopState(state: LoopStateFile): Promise<void> {
     2
   );
   await writeFile(filePath, content, "utf-8");
+  log.info("state", "Saved loop state", state);
 }
 
 /**
@@ -106,13 +111,14 @@ async function fileExists(filePath: string): Promise<boolean> {
  */
 export async function ensureGitignore(): Promise<void> {
   const gitignorePath = join(process.cwd(), GITIGNORE_FILE);
-  const entry = LOOP_STATE_FILE;
+  const entry = ".loop*";
 
   const exists = await fileExists(gitignorePath);
 
   if (!exists) {
     // Create .gitignore with our entry
     await writeFile(gitignorePath, `${entry}\n`, "utf-8");
+    log.info("git", "Created .gitignore", { entry });
     return;
   }
 
@@ -128,4 +134,5 @@ export async function ensureGitignore(): Promise<void> {
   // Append entry - ensure we start on a new line if file doesn't end with one
   const suffix = content.endsWith("\n") ? "" : "\n";
   await writeFile(gitignorePath, `${content}${suffix}${entry}\n`, "utf-8");
+  log.info("git", "Updated .gitignore", { entry });
 }

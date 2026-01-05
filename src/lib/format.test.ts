@@ -18,6 +18,13 @@ describe("format utilities", () => {
     expect(truncateText("hello", 4)).toBe("h...");
   });
 
+  test("truncateText normalizes whitespace", () => {
+    expect(truncateText("hello\nworld", 20)).toBe("hello world");
+    expect(truncateText("hello   world", 20)).toBe("hello world");
+    expect(truncateText("  hello world  ", 20)).toBe("hello world");
+    expect(truncateText("line 1\nline 2", 10)).toBe("line 1 ...");
+  });
+
   test("formatDiffSummary formats correctly", () => {
     expect(formatDiffSummary(10, 5, 2)).toBe("+10/-5 (2)");
   });

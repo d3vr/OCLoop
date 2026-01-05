@@ -4,8 +4,9 @@ export function formatTokenCount(n: number): string {
 }
 
 export function truncateText(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.substring(0, Math.max(0, maxLen - 3)) + "...";
+  const normalized = text.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLen) return normalized;
+  return normalized.substring(0, Math.max(0, maxLen - 3)) + "...";
 }
 
 export function formatDiffSummary(additions: number, deletions: number, files: number): string {

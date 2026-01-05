@@ -144,9 +144,8 @@ Labels are color-coded:
 
 ### Phase 9: Testing & Verification
 
-- [ ] Run `bun run lint` and fix any issues
-
-- [ ] Run `bun test` and fix any test failures
+- [x] Run `bun run lint` and fix any issues
+- [x] Run `bun test` and fix any test failures
 
 - [ ] [MANUAL] Visual verification of the activity log
   - Run `bun run build && bun run start --debug`

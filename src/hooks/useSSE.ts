@@ -75,6 +75,12 @@ export interface FileDiff {
  */
 export type SSEStatus = "disconnected" | "connecting" | "connected" | "error"
 
+export interface SessionError {
+  message: string
+  name?: string
+  isAborted: boolean
+}
+
 /**
  * SSE event handlers for OCLoop-relevant events
  */
@@ -90,7 +96,7 @@ export interface SSEEventHandlers {
   /** Called when session status changes */
   onSessionStatus?: (sessionId: string, status: SessionStatus) => void
   /** Called when a session error occurs */
-  onSessionError?: (sessionId: string | undefined, error: string) => void
+  onSessionError?: (sessionId: string | undefined, error: SessionError) => void
   /** Called for any event (useful for debugging) */
   onAnyEvent?: (event: Event) => void
   /** Called when a tool is used */
@@ -234,8 +240,27 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
       case "session.error": {
         const eventSessionId = (event.properties as { sessionID?: string })
           .sessionID
-        const errorMessage =
-          (event.properties as { error?: string }).error ?? "Unknown error"
+        
+        const rawError = (event.properties as any).error
+        let sessionError: SessionError
+
+        if (typeof rawError === "object" && rawError !== null) {
+          // Handle structured error object
+          const name = rawError.name
+          const message = rawError.message || rawError.data?.message || "Unknown error"
+          sessionError = {
+            message,
+            name,
+            isAborted: name === "MessageAbortedError"
+          }
+        } else {
+          // Handle string error or unknown format
+          sessionError = {
+            message: typeof rawError === "string" ? rawError : "Unknown error",
+            isAborted: false
+          }
+        }
+
         // Filter by session if a filter is set
         if (
           filterSessionId &&
@@ -244,7 +269,7 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
         ) {
           return
         }
-        handlers.onSessionError?.(eventSessionId, errorMessage)
+        handlers.onSessionError?.(eventSessionId, sessionError)
         break
       }
 

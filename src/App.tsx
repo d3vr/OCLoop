@@ -240,7 +240,14 @@ function AppContent(props: AppProps) {
         sessionStats.reset()
       },
       onSessionError: (id, error) => {
-        activityLog.addEvent("error", `Session error: ${error}`)
+        if (error.isAborted) {
+          activityLog.addEvent("task", "Session aborted by user")
+          if (loop.state().type === "running") {
+            loop.dispatch({ type: "toggle_pause" })
+          }
+        } else {
+          activityLog.addEvent("error", `Session error: ${error.message}`)
+        }
       },
       onSessionIdle: (eventSessionId) => {
         // Only handle if it's our current session

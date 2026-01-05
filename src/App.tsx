@@ -293,7 +293,7 @@ function AppContent(props: AppProps) {
         if (toolName === "read") {
           activityLog.addEvent("file_read", preview)
         } else {
-          activityLog.addEvent("tool_use", preview, { detail: toolName })
+          activityLog.addEvent("tool_use", `${toolName}: ${preview}`)
         }
       },
       onMessageText: (part, role) => {

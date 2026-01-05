@@ -137,7 +137,7 @@ Labels are color-coded:
 
 ### Phase 8: Update Tool Event Content Format
 
-- [ ] Update `onToolUse` handler in `src/App.tsx` to format content properly
+- [x] Update `onToolUse` handler in `src/App.tsx` to format content properly
   - Change the event message to include tool name prefix: `${toolName}: ${preview}`
   - Remove the `detail` option since we no longer display it separately
   - Example: `activityLog.addEvent("tool_use", `bash: ${preview}`)`

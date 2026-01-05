@@ -22,7 +22,7 @@ Commands to implement:
 
 ### Phase 1: Dependencies & Utilities
 
-- [ ] **Add dependencies and create utility functions**
+- [x] **Add dependencies and create utility functions**
   - Add `fuzzysort` and `remeda` to `package.json`
   - Create `src/lib/locale.ts` with:
     - `truncate(str, len)` - Truncate string with ellipsis

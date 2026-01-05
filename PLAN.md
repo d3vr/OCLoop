@@ -1,207 +1,171 @@
-# Activity Log Visual Improvements
+# Bug Fixes: Pause/Unpause, ActivityLog, Dialogs, Session Abort
 
 ## Overview
 
-The current activity log implementation has several usability issues:
-1. Multi-line content spills across rows instead of being contained to one line
-2. Icons alone (`<`, `>`, `~`, `⚙`) are not immediately comprehensible
-3. All text appears in the same muted color, making the UI bland
-4. Token/diff stats header is not visible (layout issue)
-5. The `session.diff` event includes `.loop.log` changes which should be filtered
-6. File reads are not logged as a distinct event type
+This plan addresses 6 bugs identified in the OCLoop application:
 
-This plan addresses all issues by:
-- Enforcing single-line entries with proper truncation
-- Replacing icons with bracketed labels (`[user]`, `[ai]`, `[think]`, `[tool]`, `[read]`, `[edit]`, etc.)
-- Color-coding labels while keeping content appropriately dimmed
-- Fixing the stats header layout
-- Handling `session.diff` events properly with filtering
-- Adding `file_read` as a distinct event type
-
-### Visual Target
-```
-Tokens: 12,105 (in:12,017 out:25 rsn:63)                  Diff: +6/-0 (1)
-
-16:05:17  [user]  hello!
-16:05:23  [think] Acknowledge the User...
-16:05:23  [ai]    Hello! I'm opencode...
-16:05:23  [tool]  bash: ls -la
-16:05:24  [read]  package.json
-16:05:25  [edit]  src/App.tsx
-16:05:26  [idle]  Session idle
-```
-
-Labels are color-coded:
-- `[user]` → cyan/info
-- `[ai]` → green/success
-- `[think]` → yellow/warning
-- `[tool]` → magenta/primary
-- `[read]` → cyan/info
-- `[edit]` → cyan/info
-- `[task]` → magenta/primary
-- `[start]`, `[idle]` → muted
-- `[error]` → red/error
+1. **Double session launch on unpause** - When going PAUSING → PAUSED → unpause, two sessions are launched instead of one
+2. **ActivityLog autoscroll** - The activity pane should autoscroll to bottom, pause when user scrolls up, resume when scrolled back down
+3. **ActivityLog padding** - Token stats panel and event list need proper padding for visual breathing room
+4. **Session abort handling** - When user manually aborts from attached OC terminal, we should pause and log the abort
+5. **Dialog buttons layout** - Quit/resume dialog buttons are stacked vertically instead of horizontally
+6. **ESC hint overlap** - The "esc" hint overlaps with dialog title due to missing flexDirection
 
 ## Backlog
 
-### Phase 1: Fix Single-Line Truncation
+### Task 1: Fix double session launch on PAUSED → unpause
 
-- [x] Update `truncateText()` in `src/lib/format.ts`
-  - Replace newlines and carriage returns with spaces: `text.replace(/[\r\n]+/g, " ")`
-  - Collapse multiple whitespace into single space: `.replace(/\s+/g, " ").trim()`
-  - Then apply the existing length truncation logic
+**Root cause:** Two places trigger `startIteration()` when unpausing:
+1. The Space key handler directly calls `startIteration()` after dispatching `toggle_pause`
+2. The effect at lines 698-706 also triggers `startIteration()` when it detects running state with empty sessionId
 
-### Phase 2: Add `file_read` Event Type
+**Fix:** Remove the redundant `startIteration()` call from the Space key handler.
 
-- [x] Update `src/hooks/useActivityLog.ts`
-  - Add `"file_read"` to the `ActivityEventType` union type (line ~7-16)
+- [x] Update `src/App.tsx` (lines 978-988)
+  - In the Space key handler, remove the `if (loop.state().type === "running") { startIteration() }` block
+  - Keep only `loop.dispatch({ type: "toggle_pause" })`
+  - The existing effect at lines 698-706 will handle starting the next iteration correctly
 
-### Phase 3: Handle `session.diff` Event with Filtering
+### Task 2: Add autoscroll with stickyScroll to ActivityLog
 
-- [x] Update `src/hooks/useSSE.ts`
-  - Add `FileDiff` interface after `SessionSummary` (around line 65):
+**Solution:** Use opentui's `<scrollbox>` component with `stickyScroll={true}` and `stickyStart="bottom"` which provides:
+- Auto-scroll to bottom when new content is added
+- Pauses auto-scroll when user scrolls up (internally tracked via `_hasManualScroll`)
+- Resumes when user scrolls back to bottom
+
+- [ ] Update `src/components/ActivityLog.tsx`
+  - Replace the event list `<box>` wrapper (lines 152-190) with `<scrollbox>`
+  - Add props: `stickyScroll={true}`, `stickyStart="bottom"`
+  - Add `verticalScrollbarOptions` with theme-appropriate colors
+  - Add `viewportOptions={{ paddingRight: 1 }}` for scrollbar clearance
+
+### Task 3: Add padding to ActivityLog
+
+- [ ] Update `src/components/ActivityLog.tsx`
+  - Add `paddingBottom: 2` to the scrollbox (for breathing room at bottom of event list)
+  - Add `paddingTop: 1` to the token stats header box (lines 126-136)
+
+### Task 4: Handle session abort (MessageAbortedError)
+
+**Background:** When user aborts from attached OC terminal (presses Esc), OpenCode sends:
+- `session.error` event with `error.name === "MessageAbortedError"`
+- `session.idle` event
+
+**Solution:** Parse the error object in `useSSE.ts` and expose structured error info to handler.
+
+- [ ] Update `src/hooks/useSSE.ts`
+  - Add `SessionError` interface after `SSEStatus` type (around line 76):
     ```typescript
-    export interface FileDiff {
-      file: string
-      additions: number
-      deletions: number
+    export interface SessionError {
+      message: string
+      name?: string
+      isAborted: boolean
     }
     ```
-  - Add `onSessionDiff?: (diffs: FileDiff[]) => void` to `SSEEventHandlers` interface (after `onSessionSummary`)
-  - Add `session.diff` case in `processEvent()` switch statement (after `session.updated` case, around line 325):
-    - Extract `sessionID` and `diff` array from event properties
-    - Apply session filter if set
-    - Call `handlers.onSessionDiff?.(diffs)` if diff array exists
+  - Update `onSessionError` signature in `SSEEventHandlers` interface (line 93):
+    - Change from `(sessionId: string | undefined, error: string) => void`
+    - To `(sessionId: string | undefined, error: SessionError) => void`
+  - Update `session.error` case in `processEvent()` (lines 234-248):
+    - Parse `event.properties.error` as an object with `{ name?: string; data?: { message?: string } }`
+    - Create `SessionError` object with `isAborted: errorObj.name === "MessageAbortedError"`
+    - Pass structured error to handler
 
-- [x] Update `src/App.tsx`
-  - Import `FileDiff` from `./hooks/useSSE`
-  - Replace `onSessionSummary` handler with `onSessionDiff` handler (around line 277-278):
-    - Filter out entries where `d.file.endsWith('.loop.log')`
-    - Aggregate `additions`, `deletions`, and `files` count from filtered array
-    - Call `sessionStats.setDiff({ additions, deletions, files })`
+- [ ] Update `src/App.tsx`
+  - Update `onSessionError` handler (lines 242-244):
+    - Check `error.isAborted`
+    - If aborted: add activity event "Session aborted by user", dispatch `toggle_pause` if running
+    - If not aborted: add error event with `error.message`
 
-### Phase 4: Handle `read` Tool as `file_read` Event
+### Task 5: Fix DialogConfirm buttons layout
 
-- [x] Update `onToolUse` handler in `src/App.tsx` (around line 280-285)
-  - Check if `toolName === "read"`
-  - If read: call `activityLog.addEvent("file_read", preview)` (no detail, no dimmed)
-  - Otherwise: keep existing `activityLog.addEvent("tool_use", preview, { detail: toolName })`
+**Root cause:** Missing `flexDirection: "row"` on buttons container causes vertical stacking.
 
-### Phase 5: Replace Icons with Labeled Brackets
+- [ ] Update `src/ui/DialogConfirm.tsx` (line 66)
+  - Add `flexDirection: "row"` to the buttons container style
 
-- [x] Update `src/components/ActivityLog.tsx`
-  - Rename `getEventIcon()` to `getEventLabel()` (line ~21-45)
-  - Update return values:
-    - `session_start` → `"[start]"`
-    - `session_idle` → `"[idle]"`
-    - `task` → `"[task]"`
-    - `file_edit` → `"[edit]"`
-    - `error` → `"[error]"`
-    - `user_message` → `"[user]"`
-    - `assistant_message` → `"[ai]"`
-    - `reasoning` → `"[think]"`
-    - `tool_use` → `"[tool]"`
-    - `file_read` → `"[read]"` (new case)
-    - `default` → `"[???]"`
+### Task 6: Fix DialogConfirm header layout (ESC hint overlap)
 
-### Phase 6: Color-Code Labels
+**Root cause:** Missing `flexDirection: "row"` on header box causes title and "esc" hint to stack.
 
-- [x] Update `src/components/ActivityLog.tsx`
-  - Add new function `getLabelColor(type: ActivityEventType): string` that returns:
-    - `user_message` → `theme().info`
-    - `assistant_message` → `theme().success`
-    - `reasoning` → `theme().warning`
-    - `tool_use` → `theme().primary`
-    - `file_read` → `theme().info`
-    - `file_edit` → `theme().info`
-    - `task` → `theme().primary`
-    - `error` → `theme().error`
-    - `session_start`, `session_idle` → `theme().textMuted`
-    - `default` → `theme().text`
-  - Update the event row rendering (line ~156-169):
-    - Split into two spans: one for label (colored), one for content
-    - Label span: `<span style={{ fg: getLabelColor(event.type) }}>{getEventLabel(event.type)}</span>`
-    - Content span: `<span style={{ fg: event.dimmed ? theme().textMuted : theme().text }}> {content}</span>`
-    - Remove `event.detail` display (tool name was in detail, now label handles it)
-  - Update content formatting:
-    - For `tool_use`: prepend tool name to content, e.g., `bash: ls -la`
-    - This requires passing tool name differently - check if `event.detail` should contain tool name
+- [ ] Update `src/ui/DialogConfirm.tsx` (line 49)
+  - Add `flexDirection: "row"` to the header box style
 
-### Phase 7: Fix Stats Header Layout
+### Task 7: Testing & Verification
 
-- [x] Update `src/components/ActivityLog.tsx`
-  - Remove `marginTop: -1` from the parent box style (line ~116)
-  - Consider changing the `<Show when={props.tokens && props.diff}>` condition to always show the header row (even with zeros), or verify the condition is correct
-  - Ensure the stats header box has `flexShrink: 0` to prevent it from being compressed
-  - Test that the header is visible after changes
-
-### Phase 8: Update Tool Event Content Format
-
-- [x] Update `onToolUse` handler in `src/App.tsx` to format content properly
-  - Change the event message to include tool name prefix: `${toolName}: ${preview}`
-  - Remove the `detail` option since we no longer display it separately
-  - Example: `activityLog.addEvent("tool_use", `bash: ${preview}`)`
-
-### Phase 9: Testing & Verification
-
-- [x] Run `bun run lint` and fix any issues
-- [x] Run `bun test` and fix any test failures
-
-- [ ] [MANUAL] Visual verification of the activity log
-  - Run `bun run build && bun run start --debug`
-  - Verify:
-    - Stats header (tokens/diff) is visible at the top
-    - All entries are single-line (no text spilling to next row)
-    - Labels are bracketed and readable: `[user]`, `[ai]`, `[think]`, `[tool]`, `[read]`, `[edit]`, `[idle]`, `[start]`
-    - Labels are color-coded (user=cyan, ai=green, think=yellow, tool=magenta, etc.)
-    - Content is dimmed for messages/reasoning, normal for tools/edits
-    - File reads show as `[read]` events
-    - Diff stats do not count `.loop.log` changes
+- [ ] Run existing tests: `bun test`
+- [ ] Run build: `bun run build`
+- [ ] [MANUAL] Test double session fix:
+  - Start loop, let it run an iteration
+  - Press Space to pause (PAUSING state)
+  - Wait for session to complete (PAUSED state)
+  - Press Space to resume
+  - Verify only ONE new session is created (check activity log for single `[start]` entry)
+- [ ] [MANUAL] Test ActivityLog autoscroll:
+  - Run loop and let activity events accumulate
+  - Verify new events auto-scroll to bottom
+  - Scroll up manually to view history
+  - Verify auto-scroll pauses (new events don't scroll view)
+  - Scroll back to bottom
+  - Verify auto-scroll resumes
+- [ ] [MANUAL] Test session abort handling:
+  - Run loop or debug mode
+  - Press T to open external terminal
+  - In the terminal, press Esc to abort
+  - Verify activity shows "Session aborted by user"
+  - Verify app transitions to PAUSED state
+- [ ] [MANUAL] Test dialog layouts:
+  - Press Q to show quit confirmation
+  - Verify buttons are in a horizontal row
+  - Verify "esc" hint is on the same line as title, right-aligned
 
 ## Testing Notes
 
-### Manual Verification Steps
-
-1. **Build and run in debug mode:**
-   ```bash
-   bun run build && bun run start --debug
-   ```
-
-2. **In the spawned OpenCode terminal, send test messages:**
-   - Simple greeting: "hello" → should show `[user]` and `[ai]` events
-   - File read: "read package.json" → should show `[read]` event with filename
-   - Bash command: "run ls -la" → should show `[tool]` with `bash: ls -la`
-   - File edit: "add a comment to build.ts" → should show `[edit]` and verify diff stats update (without .loop.log)
-
-3. **Verify stats header:**
-   - Token counts should accumulate and display at top
-   - Format: "Tokens: X,XXX (in:X,XXX out:XXX rsn:XXX)"
-   - Diff should show: "Diff: +N/-M (F)"
-
-4. **Verify color coding:**
-   - `[user]` labels should be cyan/blue
-   - `[ai]` labels should be green
-   - `[think]` labels should be yellow/orange
-   - `[tool]` labels should be magenta/purple
-   - Content text should be dimmed for messages, normal for tools
-
-5. **Verify single-line enforcement:**
-   - Long messages should truncate with "..."
-   - Multi-line reasoning should collapse to one line
-
-### Existing Test Commands
+### Build and Test Commands
 ```bash
 bun test           # Run all tests
-bun run lint       # Check for lint errors
-bun run build      # Verify build succeeds
+bun run build      # Build the application
+bun run start      # Start in normal mode
+bun run start --debug  # Start in debug mode (for testing abort handling)
 ```
+
+### Manual Test Scenarios
+
+**Scenario 1: Double Session Fix**
+1. `bun run build && bun run start`
+2. Press S to start the loop
+3. Wait for first iteration to begin (shows `[start]` in activity)
+4. Press Space to pause
+5. Wait for PAUSED state
+6. Press Space to resume
+7. Count `[start]` entries in activity log - should be exactly 2 (initial + resume)
+
+**Scenario 2: Activity Autoscroll**
+1. Start loop and let it run
+2. Watch activity pane - should auto-scroll as new events appear
+3. Use keyboard (if focused) or observe scrollbar to scroll up
+4. New events should NOT scroll the view down
+5. Scroll to very bottom
+6. New events should resume auto-scrolling
+
+**Scenario 3: Session Abort**
+1. `bun run build && bun run start --debug`
+2. Press N to create a session
+3. Press T to open terminal config, select a terminal
+4. In the terminal, type something to start the AI responding
+5. Press Esc in the terminal to abort
+6. Check OCLoop - should show "Session aborted by user" and enter PAUSED state
+
+**Scenario 4: Dialog Layouts**
+1. Start app in any mode
+2. Press Q - quit confirmation should show
+3. Verify: Title "Quit OCLoop?" on left, "esc" on right (same line)
+4. Verify: "Cancel" and "Quit" buttons side by side (horizontal)
 
 ## File Change Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/format.ts` | Modify | Update `truncateText()` to strip newlines and normalize whitespace |
-| `src/hooks/useActivityLog.ts` | Modify | Add `file_read` to `ActivityEventType` union |
-| `src/hooks/useSSE.ts` | Modify | Add `FileDiff` interface, `onSessionDiff` handler, handle `session.diff` event |
-| `src/components/ActivityLog.tsx` | Modify | Replace icons with labels, add color coding, fix stats header layout |
-| `src/App.tsx` | Modify | Handle `read` tool as `file_read`, replace `onSessionSummary` with `onSessionDiff`, update tool event format |
+| `src/App.tsx` | Modify | Remove duplicate `startIteration()` from Space handler; update `onSessionError` handler |
+| `src/components/ActivityLog.tsx` | Modify | Replace box with scrollbox, add stickyScroll, add padding |
+| `src/hooks/useSSE.ts` | Modify | Add `SessionError` interface, parse error object properly |
+| `src/ui/DialogConfirm.tsx` | Modify | Add `flexDirection: "row"` to header and buttons containers |

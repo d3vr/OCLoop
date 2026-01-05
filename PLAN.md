@@ -1,143 +1,208 @@
-# SSE Connection Fix & Verbose Flag Implementation
+# Activity Log Visual Improvements
 
 ## Overview
 
-This plan addresses three critical issues in ocloop:
+The current activity log implementation has several usability issues:
+1. Multi-line content spills across rows instead of being contained to one line
+2. Icons alone (`<`, `>`, `~`, `⚙`) are not immediately comprehensible
+3. All text appears in the same muted color, making the UI bland
+4. Token/diff stats header is not visible (layout issue)
+5. The `session.diff` event includes `.loop.log` changes which should be filtered
+6. File reads are not logged as a distinct event type
 
-1. **SSE Connection Bug (Critical)**: The SSE hook captures an empty URL at creation time instead of using a reactive accessor. This causes the SSE connection to fail silently, resulting in:
-   - Activity pane showing no events
-   - `session.idle` events not being received
-   - Loop not advancing to the next iteration after a session completes
+This plan addresses all issues by:
+- Enforcing single-line entries with proper truncation
+- Replacing icons with bracketed labels (`[user]`, `[ai]`, `[think]`, `[tool]`, `[read]`, `[edit]`, etc.)
+- Color-coding labels while keeping content appropriately dimmed
+- Fixing the stats header layout
+- Handling `session.diff` events properly with filtering
+- Adding `file_read` as a distinct event type
 
-2. **Quit Keybinding in Pausing State**: Users cannot quit ocloop while in the `pausing` state, leaving them stuck if something goes wrong.
+### Visual Target
+```
+Tokens: 12,105 (in:12,017 out:25 rsn:63)                  Diff: +6/-0 (1)
 
-3. **Verbose Keyboard Logging**: Keyboard events are logged to `.loop.log` unconditionally, cluttering the debug log. These should be hidden behind a `--verbose` flag.
+16:05:17  [user]  hello!
+16:05:23  [think] Acknowledge the User...
+16:05:23  [ai]    Hello! I'm opencode...
+16:05:23  [tool]  bash: ls -la
+16:05:24  [read]  package.json
+16:05:25  [edit]  src/App.tsx
+16:05:26  [idle]  Session idle
+```
 
-**Root Cause Analysis (SSE Bug)**:
-- In `App.tsx:227-228`, the URL is passed as `url: server.url() || ""` which evaluates to empty string at hook creation time (before server starts)
-- `useSSE` stores this as a static `string`, not a reactive `Accessor<string>`
-- When `sse.reconnect()` is called after server is ready, it still uses the empty URL
-- Log evidence: `[INFO] [sse] Connecting {"url":""}` shows the connection attempt with empty URL
+Labels are color-coded:
+- `[user]` → cyan/info
+- `[ai]` → green/success
+- `[think]` → yellow/warning
+- `[tool]` → magenta/primary
+- `[read]` → cyan/info
+- `[edit]` → cyan/info
+- `[task]` → magenta/primary
+- `[start]`, `[idle]` → muted
+- `[error]` → red/error
 
 ## Backlog
 
-### SSE Connection Fix
+### Phase 1: Fix Single-Line Truncation
 
-- [x] **Update `useSSE` hook to use reactive URL accessor**
-  - File: `src/hooks/useSSE.ts`
-  - Change `UseSSEOptions.url` type from `string` to `Accessor<string>` (line 36)
-  - Update destructuring in `useSSE()` to keep `url` as accessor (line 94)
-  - Update `connect()` function to call `url()` to get current value (lines 207, 211-212)
-  - Add validation: if `url()` is empty, log warning and return early from `connect()`
+- [x] Update `truncateText()` in `src/lib/format.ts`
+  - Replace newlines and carriage returns with spaces: `text.replace(/[\r\n]+/g, " ")`
+  - Collapse multiple whitespace into single space: `.replace(/\s+/g, " ").trim()`
+  - Then apply the existing length truncation logic
 
-- [x] **Update App.tsx to pass URL as accessor**
-  - File: `src/App.tsx`
-  - Change line 228 from `url: server.url() || ""` to `url: () => server.url() || ""`
+### Phase 2: Add `file_read` Event Type
 
-### Quit Keybinding Fix
+- [x] Update `src/hooks/useActivityLog.ts`
+  - Add `"file_read"` to the `ActivityEventType` union type (line ~7-16)
 
-- [x] **Allow quit from pausing state**
-  - File: `src/hooks/useLoopState.ts`
-  - Add `if (s.type === "pausing") return true` to `canQuit()` memo (around line 272)
+### Phase 3: Handle `session.diff` Event with Filtering
 
-- [x] **Update Dashboard keybind hints for pausing state**
-  - File: `src/components/Dashboard.tsx`
-  - Change line 142 from `return [{ key: "", desc: "Waiting for task..." }]`
-  - To: `return [{ key: "", desc: "Waiting for task..." }, { key: "Q", desc: "quit" }]`
+- [x] Update `src/hooks/useSSE.ts`
+  - Add `FileDiff` interface after `SessionSummary` (around line 65):
+    ```typescript
+    export interface FileDiff {
+      file: string
+      additions: number
+      deletions: number
+    }
+    ```
+  - Add `onSessionDiff?: (diffs: FileDiff[]) => void` to `SSEEventHandlers` interface (after `onSessionSummary`)
+  - Add `session.diff` case in `processEvent()` switch statement (after `session.updated` case, around line 325):
+    - Extract `sessionID` and `diff` array from event properties
+    - Apply session filter if set
+    - Call `handlers.onSessionDiff?.(diffs)` if diff array exists
 
-- [x] **Add test for quit from pausing state**
-  - File: `src/hooks/useLoopState.test.ts`
-  - Add test case in `canQuit` describe block verifying `canQuit` returns true for pausing state
+- [x] Update `src/App.tsx`
+  - Import `FileDiff` from `./hooks/useSSE`
+  - Replace `onSessionSummary` handler with `onSessionDiff` handler (around line 277-278):
+    - Filter out entries where `d.file.endsWith('.loop.log')`
+    - Aggregate `additions`, `deletions`, and `files` count from filtered array
+    - Call `sessionStats.setDiff({ additions, deletions, files })`
 
-### Verbose Flag Implementation
+### Phase 4: Handle `read` Tool as `file_read` Event
 
-- [x] **Add `verbose` to CLI types**
-  - File: `src/types.ts`
-  - Add `verbose?: boolean` to `CLIArgs` interface (around line 68)
+- [ ] Update `onToolUse` handler in `src/App.tsx` (around line 280-285)
+  - Check if `toolName === "read"`
+  - If read: call `activityLog.addEvent("file_read", preview)` (no detail, no dimmed)
+  - Otherwise: keep existing `activityLog.addEvent("tool_use", preview, { detail: toolName })`
 
-- [x] **Parse `--verbose` / `-v` flag in CLI**
-  - File: `src/index.tsx`
-  - Add case for `-v` and `--verbose` in `parseArgs()` switch statement (around line 100)
-  - Update help text in `showHelp()` to document the flag (around line 27)
+### Phase 5: Replace Icons with Labeled Brackets
 
-- [x] **Conditionally log keyboard events based on verbose flag**
-  - File: `src/App.tsx`
-  - Wrap keyboard debug logging (lines 856-864) with `if (props.verbose)` check
+- [ ] Update `src/components/ActivityLog.tsx`
+  - Rename `getEventIcon()` to `getEventLabel()` (line ~21-45)
+  - Update return values:
+    - `session_start` → `"[start]"`
+    - `session_idle` → `"[idle]"`
+    - `task` → `"[task]"`
+    - `file_edit` → `"[edit]"`
+    - `error` → `"[error]"`
+    - `user_message` → `"[user]"`
+    - `assistant_message` → `"[ai]"`
+    - `reasoning` → `"[think]"`
+    - `tool_use` → `"[tool]"`
+    - `file_read` → `"[read]"` (new case)
+    - `default` → `"[???]"`
 
-### Testing & Verification
+### Phase 6: Color-Code Labels
 
-- [ ] [MANUAL] **Verify SSE connection and activity log**
-  - Run `bun run build && ./dist/ocloop`
-  - Start a session with a plan file
-  - Verify in `.loop.log` that SSE connects with non-empty URL: `[INFO] [sse] Connecting {"url":"http://127.0.0.1:XXXX"}`
-  - Verify activity pane shows events (session start, file edits, task updates)
-  - Verify session_idle triggers the next iteration
+- [ ] Update `src/components/ActivityLog.tsx`
+  - Add new function `getLabelColor(type: ActivityEventType): string` that returns:
+    - `user_message` → `theme().info`
+    - `assistant_message` → `theme().success`
+    - `reasoning` → `theme().warning`
+    - `tool_use` → `theme().primary`
+    - `file_read` → `theme().info`
+    - `file_edit` → `theme().info`
+    - `task` → `theme().primary`
+    - `error` → `theme().error`
+    - `session_start`, `session_idle` → `theme().textMuted`
+    - `default` → `theme().text`
+  - Update the event row rendering (line ~156-169):
+    - Split into two spans: one for label (colored), one for content
+    - Label span: `<span style={{ fg: getLabelColor(event.type) }}>{getEventLabel(event.type)}</span>`
+    - Content span: `<span style={{ fg: event.dimmed ? theme().textMuted : theme().text }}> {content}</span>`
+    - Remove `event.detail` display (tool name was in detail, now label handles it)
+  - Update content formatting:
+    - For `tool_use`: prepend tool name to content, e.g., `bash: ls -la`
+    - This requires passing tool name differently - check if `event.detail` should contain tool name
 
-- [ ] [MANUAL] **Verify quit works in pausing state**
-  - Start ocloop with a plan
-  - Press Space to pause while running
-  - While in "Waiting for task..." state, press Q
-  - Verify quit confirmation appears
+### Phase 7: Fix Stats Header Layout
 
-- [ ] [MANUAL] **Verify verbose flag behavior**
-  - Run `./dist/ocloop` (without --verbose)
-  - Press some keys, check `.loop.log` has NO `[keybinding] Key pressed` entries
-  - Run `./dist/ocloop --verbose`
-  - Press some keys, check `.loop.log` HAS `[keybinding] Key pressed` entries
+- [ ] Update `src/components/ActivityLog.tsx`
+  - Remove `marginTop: -1` from the parent box style (line ~116)
+  - Consider changing the `<Show when={props.tokens && props.diff}>` condition to always show the header row (even with zeros), or verify the condition is correct
+  - Ensure the stats header box has `flexShrink: 0` to prevent it from being compressed
+  - Test that the header is visible after changes
+
+### Phase 8: Update Tool Event Content Format
+
+- [ ] Update `onToolUse` handler in `src/App.tsx` to format content properly
+  - Change the event message to include tool name prefix: `${toolName}: ${preview}`
+  - Remove the `detail` option since we no longer display it separately
+  - Example: `activityLog.addEvent("tool_use", `bash: ${preview}`)`
+
+### Phase 9: Testing & Verification
+
+- [ ] Run `bun run lint` and fix any issues
+
+- [ ] Run `bun test` and fix any test failures
+
+- [ ] [MANUAL] Visual verification of the activity log
+  - Run `bun run build && bun run start --debug`
+  - Verify:
+    - Stats header (tokens/diff) is visible at the top
+    - All entries are single-line (no text spilling to next row)
+    - Labels are bracketed and readable: `[user]`, `[ai]`, `[think]`, `[tool]`, `[read]`, `[edit]`, `[idle]`, `[start]`
+    - Labels are color-coded (user=cyan, ai=green, think=yellow, tool=magenta, etc.)
+    - Content is dimmed for messages/reasoning, normal for tools/edits
+    - File reads show as `[read]` events
+    - Diff stats do not count `.loop.log` changes
 
 ## Testing Notes
 
-### Automated Tests
-```bash
-bun test
-```
-This runs the existing test suite including the new `canQuit` pausing state test.
-
 ### Manual Verification Steps
 
-1. **Build the project**:
+1. **Build and run in debug mode:**
    ```bash
-   bun run build
+   bun run build && bun run start --debug
    ```
 
-2. **Test SSE fix** (requires a valid PLAN.md and .loop-prompt.md):
-   ```bash
-   ./dist/ocloop
-   # Press S to start
-   # Watch activity pane for events
-   # Check .loop.log for SSE connection URL
-   ```
+2. **In the spawned OpenCode terminal, send test messages:**
+   - Simple greeting: "hello" → should show `[user]` and `[ai]` events
+   - File read: "read package.json" → should show `[read]` event with filename
+   - Bash command: "run ls -la" → should show `[tool]` with `bash: ls -la`
+   - File edit: "add a comment to build.ts" → should show `[edit]` and verify diff stats update (without .loop.log)
 
-3. **Test quit in pausing state**:
-   ```bash
-   ./dist/ocloop
-   # Press S to start
-   # Press Space to pause
-   # Press Q while "Waiting for task..." is shown
-   # Should show quit confirmation
-   ```
+3. **Verify stats header:**
+   - Token counts should accumulate and display at top
+   - Format: "Tokens: X,XXX (in:X,XXX out:XXX rsn:XXX)"
+   - Diff should show: "Diff: +N/-M (F)"
 
-4. **Test verbose flag**:
-   ```bash
-   # Without verbose - no keyboard logs
-   ./dist/ocloop
-   # Press keys, exit
-   grep "keybinding" .loop.log  # Should return nothing
-   
-   # With verbose - keyboard logs present
-   ./dist/ocloop --verbose
-   # Press keys, exit
-   grep "keybinding" .loop.log  # Should show key presses
-   ```
+4. **Verify color coding:**
+   - `[user]` labels should be cyan/blue
+   - `[ai]` labels should be green
+   - `[think]` labels should be yellow/orange
+   - `[tool]` labels should be magenta/purple
+   - Content text should be dimmed for messages, normal for tools
+
+5. **Verify single-line enforcement:**
+   - Long messages should truncate with "..."
+   - Multi-line reasoning should collapse to one line
+
+### Existing Test Commands
+```bash
+bun test           # Run all tests
+bun run lint       # Check for lint errors
+bun run build      # Verify build succeeds
+```
 
 ## File Change Summary
 
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `src/hooks/useSSE.ts` | Modify | Change URL from string to Accessor, add empty URL validation |
-| `src/App.tsx` | Modify | Pass URL as accessor, wrap keyboard logging with verbose check |
-| `src/hooks/useLoopState.ts` | Modify | Add pausing to canQuit() |
-| `src/components/Dashboard.tsx` | Modify | Add Q keybind hint for pausing state |
-| `src/hooks/useLoopState.test.ts` | Modify | Add test for canQuit with pausing state |
-| `src/types.ts` | Modify | Add verbose to CLIArgs |
-| `src/index.tsx` | Modify | Parse --verbose flag, update help text |
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/format.ts` | Modify | Update `truncateText()` to strip newlines and normalize whitespace |
+| `src/hooks/useActivityLog.ts` | Modify | Add `file_read` to `ActivityEventType` union |
+| `src/hooks/useSSE.ts` | Modify | Add `FileDiff` interface, `onSessionDiff` handler, handle `session.diff` event |
+| `src/components/ActivityLog.tsx` | Modify | Replace icons with labels, add color coding, fix stats header layout |
+| `src/App.tsx` | Modify | Handle `read` tool as `file_read`, replace `onSessionSummary` with `onSessionDiff`, update tool event format |

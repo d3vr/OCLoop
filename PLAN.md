@@ -129,7 +129,7 @@ Labels are color-coded:
 
 ### Phase 7: Fix Stats Header Layout
 
-- [ ] Update `src/components/ActivityLog.tsx`
+- [x] Update `src/components/ActivityLog.tsx`
   - Remove `marginTop: -1` from the parent box style (line ~116)
   - Consider changing the `<Show when={props.tokens && props.diff}>` condition to always show the header row (even with zeros), or verify the condition is correct
   - Ensure the stats header box has `flexShrink: 0` to prevent it from being compressed

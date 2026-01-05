@@ -119,7 +119,6 @@ export function ActivityLog(props: ActivityLogProps) {
         backgroundColor: theme().backgroundPanel,
         flexGrow: 1,
         flexDirection: "column",
-        marginTop: -1,
         overflow: "hidden",
       }}
     >
@@ -133,6 +132,7 @@ export function ActivityLog(props: ActivityLogProps) {
             paddingLeft: 1,
             paddingRight: 1,
             marginBottom: 1,
+            flexShrink: 0,
           }}
         >
           <text>

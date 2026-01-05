@@ -116,7 +116,7 @@ Commands to implement:
 
 ### Phase 6: Update Existing Dialogs
 
-- [ ] **Refactor QuitConfirmation to use DialogConfirm pattern**
+- [x] **Refactor QuitConfirmation to use DialogConfirm pattern**
   - File: `src/components/QuitConfirmation.tsx`
   - Change from `[Y]es [N]o` key prompts to Cancel/Quit buttons
   - Use DialogConfirm internally or adopt its pattern directly
@@ -125,7 +125,7 @@ Commands to implement:
   - Handle own keyboard (←/→/Enter/Escape) via useKeyboard
   - Remove Y/N key handling from App.tsx for this dialog
 
-- [ ] **Refactor DialogResume to use DialogConfirm pattern**
+- [x] **Refactor DialogResume to use DialogConfirm pattern**
   - File: `src/components/DialogResume.tsx`
   - Change from `[Y] [N]` key prompts to buttons
   - Button labels: "Start Fresh" / "Resume"
@@ -133,19 +133,19 @@ Commands to implement:
   - Handle own keyboard via useKeyboard
   - Remove Y/N key handling from App.tsx for this dialog
 
-- [ ] **Update DialogCompletion styling**
+- [x] **Update DialogCompletion styling**
   - File: `src/components/DialogCompletion.tsx`
   - Add proper header with title + "esc" hint (or "Q" since Q quits)
   - Update footer to use new **Label** key pattern: "Quit Q"
   - Keep existing content structure (summary, manual tasks, blocked tasks, scrollbox)
 
-- [ ] **Update DialogError styling**
+- [x] **Update DialogError styling**
   - File: `src/components/DialogError.tsx`
   - Add proper header with "Error" title + "esc" hint
   - Update footer to use new pattern: "Retry R" (if recoverable) + "Quit Q"
   - Keep existing error badge and message display
 
-- [ ] **Refactor DialogTerminalConfig to use DialogSelect**
+- [x] **Refactor DialogTerminalConfig to use DialogSelect**
   - File: `src/components/DialogTerminalConfig.tsx`
   - Replace custom list rendering with DialogSelect for terminal list view
   - Terminal options become DialogSelectOption[] with onSelect handlers
@@ -158,7 +158,7 @@ Commands to implement:
   - Remove custom handleInput for list view (DialogSelect handles it)
   - Keep handleInput only for custom form view
 
-- [ ] **Update DialogTerminalError styling**
+- [x] **Update DialogTerminalError styling**
   - File: `src/components/DialogTerminalError.tsx`
   - Add proper header with "Terminal Launch Failed" + "esc" hint
   - Update footer to use new pattern: "Copy C" + "Close esc"
@@ -192,14 +192,14 @@ Commands to implement:
 
 - [ ] **Simplify App.tsx input handler**
   - File: `src/App.tsx`
-  - Remove Y/N key handling for QuitConfirmation (handled by component)
-  - Remove Y/N key handling for DialogResume (handled by component)
-  - Remove custom input handling delegation for terminal config list view
+  - [x] Remove Y/N key handling for QuitConfirmation (handled by component)
+  - [x] Remove Y/N key handling for DialogResume (handled by component)
+  - [x] Remove custom input handling delegation for terminal config list view
   - Keep: Space (pause/resume), Q (quit trigger), S (start), T (terminal launch trigger), error state R
   - Add: Ctrl+P detection → `command.show()`
   - Update T key handler: if no session, show toast; if session, call command.trigger("terminal_config") or show config directly
 
-- [ ] **Update component exports**
+- [x] **Update component exports**
   - File: `src/components/index.ts`
   - Remove createTerminalConfigState export if no longer needed externally
   - Keep all component exports

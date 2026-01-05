@@ -22,6 +22,7 @@ Options:
   -m, --model <string>     Model to use (passed to opencode)
   -r, --run                Start iterations immediately (default: wait for [S])
   -d, --debug              Debug/sandbox mode (no plan file validation, manual sessions)
+  -v, --verbose            Enable verbose logging (keyboard events, etc.)
   --prompt <path>          Path to loop prompt file (default: ${DEFAULTS.PROMPT_FILE})
   --plan <path>            Path to plan file (default: ${DEFAULTS.PLAN_FILE})
   -h, --help               Show help
@@ -99,6 +100,11 @@ function parseArgs(argv: string[]): CLIArgs {
       case "-d":
       case "--debug":
         args.debug = true
+        break
+
+      case "-v":
+      case "--verbose":
+        args.verbose = true
         break
 
       default:

@@ -139,7 +139,7 @@ export function Dashboard(props: DashboardProps) {
           { key: "Q", desc: "quit" },
         ]
       case "pausing":
-        return [{ key: "", desc: "Waiting for task..." }]
+        return [{ key: "", desc: "Waiting for task..." }, { key: "Q", desc: "quit" }]
       case "complete":
         return [{ key: "", desc: "Press any key to exit" }]
       case "error":

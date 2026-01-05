@@ -225,7 +225,7 @@ function AppContent(props: AppProps) {
 
   // SSE subscription (only when server is ready)
   const sse = useSSE({
-    url: server.url() || "",
+    url: () => server.url() || "",
     sessionId: sessionId,
     autoConnect: false, // We'll connect when server is ready
     handlers: {
@@ -852,8 +852,8 @@ function AppContent(props: AppProps) {
   // Input handler for keybindings
   onMount(() => {
     const inputHandler = (sequence: string): boolean => {
-      // Log key press
-      if (isKeyboardInput(sequence)) {
+      // Log key press (only if verbose mode is enabled)
+      if (props.verbose && isKeyboardInput(sequence)) {
         log.debug("keybinding", "Key pressed", { 
           key: sequence, 
           hex: "0x" + sequence.charCodeAt(0).toString(16).toUpperCase(),

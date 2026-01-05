@@ -32,8 +32,8 @@ export interface SSEEventHandlers {
  * Options for the useSSE hook
  */
 export interface UseSSEOptions {
-  /** Server URL to connect to */
-  url: string
+  /** Server URL to connect to (reactive accessor) */
+  url: Accessor<string>
   /** Directory scope for the SSE connection */
   directory?: string
   /** Event handlers */
@@ -199,17 +199,26 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
       return
     }
 
+    // Get the current URL value from the accessor
+    const currentUrl = url()
+    
+    // Validate URL before attempting to connect
+    if (!currentUrl) {
+      log.warn("sse", "Cannot connect: URL is empty")
+      return
+    }
+
     setStatus("connecting")
     setError(undefined)
 
     abortController = new AbortController()
     
-    log.info("sse", "Connecting", { url, directory })
+    log.info("sse", "Connecting", { url: currentUrl, directory })
 
     try {
       // Create the SDK client
       const client = createOpencodeClient({
-        baseUrl: url,
+        baseUrl: currentUrl,
         directory,
       })
 

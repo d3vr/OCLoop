@@ -1,165 +1,143 @@
-# Modal Refactor Bug Fixes - Phase 2
+# SSE Connection Fix & Verbose Flag Implementation
 
 ## Overview
 
-Fix remaining UI/UX issues in the DialogSelect component, Terminal Config dialog, Command Palette, and Dashboard after the initial modal refactor. Issues include layout problems (squished search input, overlapping options, footer in column instead of row), broken input handling (backspace not working), confusing keybindings, modal stacking issues, double terminal launches, and missing command palette hint in dashboard.
+This plan addresses three critical issues in ocloop:
+
+1. **SSE Connection Bug (Critical)**: The SSE hook captures an empty URL at creation time instead of using a reactive accessor. This causes the SSE connection to fail silently, resulting in:
+   - Activity pane showing no events
+   - `session.idle` events not being received
+   - Loop not advancing to the next iteration after a session completes
+
+2. **Quit Keybinding in Pausing State**: Users cannot quit ocloop while in the `pausing` state, leaving them stuck if something goes wrong.
+
+3. **Verbose Keyboard Logging**: Keyboard events are logged to `.loop.log` unconditionally, cluttering the debug log. These should be hidden behind a `--verbose` flag.
+
+**Root Cause Analysis (SSE Bug)**:
+- In `App.tsx:227-228`, the URL is passed as `url: server.url() || ""` which evaluates to empty string at hook creation time (before server starts)
+- `useSSE` stores this as a static `string`, not a reactive `Accessor<string>`
+- When `sse.reconnect()` is called after server is ready, it still uses the empty URL
+- Log evidence: `[INFO] [sse] Connecting {"url":""}` shows the connection attempt with empty URL
 
 ## Backlog
 
-### Phase 1: DialogSelect Core Layout Fixes
+### SSE Connection Fix
 
-- [x] **Fix search input and list item height issues**
-  - File: `src/ui/DialogSelect.tsx`
-  - Search input is "squished" because box lacks explicit height
-  - List items overlap because they lack explicit height
-  - Changes:
-    - Line ~169: Add `height: 1` to search box style
-    - Line ~183: Add `overflow: "hidden"` to list container box style
-    - Line ~202: Add `height: 1` to each list item box style
+- [ ] **Update `useSSE` hook to use reactive URL accessor**
+  - File: `src/hooks/useSSE.ts`
+  - Change `UseSSEOptions.url` type from `string` to `Accessor<string>` (line 36)
+  - Update destructuring in `useSSE()` to keep `url` as accessor (line 94)
+  - Update `connect()` function to call `url()` to get current value (lines 207, 211-212)
+  - Add validation: if `url()` is empty, log warning and return early from `connect()`
 
-- [x] **Fix footer layout - should be row, not column**
-  - File: `src/ui/DialogSelect.tsx`
-  - Line ~238: Add `flexDirection: "row"` to footer box style
-  - The keybind hints are stacking vertically instead of horizontally
-
-- [x] **Fix backspace not working in search input**
-  - File: `src/ui/DialogSelect.tsx`
-  - Line ~122: The character input check `input.length === 1` matches backspace before the backspace handler runs
-  - Change from:
-    ```tsx
-    if (!key.ctrl && !key.meta && input.length === 1) {
-      setSearch(s => s + input)
-    }
-    ```
-  - To:
-    ```tsx
-    if (!key.ctrl && !key.meta && input.length === 1 && key.name !== "backspace") {
-      setSearch(s => s + input)
-    }
-    ```
-
-### Phase 2: Terminal Config Dialog Fixes
-
-- [x] **Fix keybindings - change Copy from "C" to "Ctrl+C" and add navigation hints**
-  - File: `src/components/DialogTerminalConfig.tsx`
-  - Lines 210-213: Update keybinds array
-  - Current: `{ label: "Copy", key: "C", onSelect: state.onCopy, bind: ["c", "C"] }`
-  - Change to include navigation hints and use Ctrl+C:
-    ```tsx
-    const keybinds = [
-      { label: "Select", key: "Enter" },
-      { label: "Navigate", key: "↑/↓" },
-      { label: "Copy", key: "^C", onSelect: state.onCopy, bind: ["\x03"] }
-    ]
-    ```
-  - Note: `\x03` is Ctrl+C. The display key is "^C"
-
-- [x] **Fix double terminal launch on selection**
-  - File: `src/ui/DialogSelect.tsx`
-  - Lines 78-84: When Enter is pressed, investigate if handler fires twice
-  - Lines 196-200: Mouse click also triggers selection
-  - Potential causes:
-    1. Both `key.name === "return"` and `key.name === "enter"` matching on single keypress
-    2. Event propagation issue
-  - Fix: Add early return or guard flag to prevent double execution
-  - Also check `src/hooks/useInput.ts` to see if Enter generates multiple events
-
-### Phase 3: Command Palette Integration Fixes
-
-- [x] **Fix "Choose default terminal" modal stacking issue**
+- [ ] **Update App.tsx to pass URL as accessor**
   - File: `src/App.tsx`
-  - Lines 825-827: When selecting "Choose default terminal" from command palette, the terminal config modal opens behind the command palette
-  - Need to close command palette before showing terminal config
-  - Change from:
-    ```tsx
-    onSelect: () => {
-      setShowingTerminalConfig(true)
-    },
-    ```
-  - To:
-    ```tsx
-    onSelect: () => {
-      dialog.clear()  // Close command palette first
-      setShowingTerminalConfig(true)
-    },
-    ```
-  - The `dialog` context is already available at line 119: `const dialog = useDialog()`
+  - Change line 228 from `url: server.url() || ""` to `url: () => server.url() || ""`
 
-### Phase 4: Dashboard Command Palette Hint
+### Quit Keybinding Fix
 
-- [x] **Add command palette keybinding hint to Dashboard**
+- [ ] **Allow quit from pausing state**
+  - File: `src/hooks/useLoopState.ts`
+  - Add `if (s.type === "pausing") return true` to `canQuit()` memo (around line 272)
+
+- [ ] **Update Dashboard keybind hints for pausing state**
   - File: `src/components/Dashboard.tsx`
-  - Lines 115-166: Add `{ key: "^P", desc: "commands" }` to keybindHints for applicable states
-  - States to update:
-    - `ready` (line 121): Add `{ key: "^P", desc: "commands" }`
-    - `running` (line 126): Add `{ key: "^P", desc: "commands" }`
-    - `paused` (line 132): Add `{ key: "^P", desc: "commands" }`
-    - `debug` with sessionId (line 152): Add `{ key: "^P", desc: "commands" }`
-    - `debug` without sessionId (line 159): Add `{ key: "^P", desc: "commands" }`
+  - Change line 142 from `return [{ key: "", desc: "Waiting for task..." }]`
+  - To: `return [{ key: "", desc: "Waiting for task..." }, { key: "Q", desc: "quit" }]`
 
-### Phase 5: Verification
+- [ ] **Add test for quit from pausing state**
+  - File: `src/hooks/useLoopState.test.ts`
+  - Add test case in `canQuit` describe block verifying `canQuit` returns true for pausing state
 
-- [ ] [MANUAL] **Verify all fixes**
-  - Build and run: `bun run build && ./dist/ocloop --debug`
-  - Test Terminal Config Dialog (press T):
-    - [ ] Search input has proper height (not squished)
-    - [ ] Options don't overlap (each on its own line)
-    - [ ] Backspace works to delete from search
-    - [ ] Footer shows hints in a row: "Select Enter  Navigate ↑/↓  Copy ^C"
-    - [ ] Ctrl+C copies the attach command
-    - [ ] Selecting a terminal (e.g., alacritty) launches exactly 1 terminal window
-    - [ ] Escape closes the dialog
-  - Test Command Palette (press Ctrl+P):
-    - [ ] Footer hints display horizontally, not vertically
-    - [ ] Selecting "Choose default terminal" closes command palette and shows terminal config
-    - [ ] Terminal config is visible (not behind command palette)
-  - Test Dashboard:
-    - [ ] Keybind hints include "^P commands" in running/paused/debug states
+### Verbose Flag Implementation
+
+- [ ] **Add `verbose` to CLI types**
+  - File: `src/types.ts`
+  - Add `verbose?: boolean` to `CLIArgs` interface (around line 68)
+
+- [ ] **Parse `--verbose` / `-v` flag in CLI**
+  - File: `src/index.tsx`
+  - Add case for `-v` and `--verbose` in `parseArgs()` switch statement (around line 100)
+  - Update help text in `showHelp()` to document the flag (around line 27)
+
+- [ ] **Conditionally log keyboard events based on verbose flag**
+  - File: `src/App.tsx`
+  - Wrap keyboard debug logging (lines 856-864) with `if (props.verbose)` check
+
+### Testing & Verification
+
+- [ ] [MANUAL] **Verify SSE connection and activity log**
+  - Run `bun run build && ./dist/ocloop`
+  - Start a session with a plan file
+  - Verify in `.loop.log` that SSE connects with non-empty URL: `[INFO] [sse] Connecting {"url":"http://127.0.0.1:XXXX"}`
+  - Verify activity pane shows events (session start, file edits, task updates)
+  - Verify session_idle triggers the next iteration
+
+- [ ] [MANUAL] **Verify quit works in pausing state**
+  - Start ocloop with a plan
+  - Press Space to pause while running
+  - While in "Waiting for task..." state, press Q
+  - Verify quit confirmation appears
+
+- [ ] [MANUAL] **Verify verbose flag behavior**
+  - Run `./dist/ocloop` (without --verbose)
+  - Press some keys, check `.loop.log` has NO `[keybinding] Key pressed` entries
+  - Run `./dist/ocloop --verbose`
+  - Press some keys, check `.loop.log` HAS `[keybinding] Key pressed` entries
 
 ## Testing Notes
 
-### Build and Run
-```bash
-bun run build && ./dist/ocloop --debug
-```
-
-### Manual Test Sequence
-
-1. **Dashboard hint visibility**
-   - Launch in debug mode
-   - Verify "^P commands" appears in the keybind hints row
-
-2. **Command Palette**
-   - Press `Ctrl+P` to open command palette
-   - Verify footer shows "Select Enter" and "Navigate ↑/↓" in a horizontal row
-   - Type to filter commands, verify backspace works
-   - Select "Choose default terminal"
-   - Verify command palette closes and terminal config opens (not hidden behind)
-
-3. **Terminal Config Dialog**
-   - Press `T` to open (or via command palette)
-   - Verify search input box has proper height with visible border
-   - Verify terminal options (alacritty, kitty, xterm, etc.) each appear on separate lines
-   - Type in search, verify backspace deletes characters
-   - Verify footer shows "Select Enter  Navigate ↑/↓  Copy ^C" horizontally
-   - Press `Ctrl+C` to copy attach command (should show toast)
-   - Select a terminal (e.g., alacritty) and verify only ONE terminal window opens
-   - Press `Escape` to close dialog
-
-4. **Regression check**
-   - Verify all existing keyboard shortcuts still work (Space for pause, Q for quit, etc.)
-
-### Existing Tests
+### Automated Tests
 ```bash
 bun test
 ```
+This runs the existing test suite including the new `canQuit` pausing state test.
+
+### Manual Verification Steps
+
+1. **Build the project**:
+   ```bash
+   bun run build
+   ```
+
+2. **Test SSE fix** (requires a valid PLAN.md and .loop-prompt.md):
+   ```bash
+   ./dist/ocloop
+   # Press S to start
+   # Watch activity pane for events
+   # Check .loop.log for SSE connection URL
+   ```
+
+3. **Test quit in pausing state**:
+   ```bash
+   ./dist/ocloop
+   # Press S to start
+   # Press Space to pause
+   # Press Q while "Waiting for task..." is shown
+   # Should show quit confirmation
+   ```
+
+4. **Test verbose flag**:
+   ```bash
+   # Without verbose - no keyboard logs
+   ./dist/ocloop
+   # Press keys, exit
+   grep "keybinding" .loop.log  # Should return nothing
+   
+   # With verbose - keyboard logs present
+   ./dist/ocloop --verbose
+   # Press keys, exit
+   grep "keybinding" .loop.log  # Should show key presses
+   ```
 
 ## File Change Summary
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/ui/DialogSelect.tsx` | Modify | Fix search box height, list item height, overflow, footer layout, backspace handling |
-| `src/components/DialogTerminalConfig.tsx` | Modify | Update keybinds to include Enter/Navigate hints and change Copy to Ctrl+C |
-| `src/App.tsx` | Modify | Close command palette before showing terminal config |
-| `src/components/Dashboard.tsx` | Modify | Add "^P commands" hint to applicable states |
-| `src/hooks/useInput.ts` | Review | Check if Enter generates multiple key events (may need fix) |
+| File | Change Type | Description |
+|------|-------------|-------------|
+| `src/hooks/useSSE.ts` | Modify | Change URL from string to Accessor, add empty URL validation |
+| `src/App.tsx` | Modify | Pass URL as accessor, wrap keyboard logging with verbose check |
+| `src/hooks/useLoopState.ts` | Modify | Add pausing to canQuit() |
+| `src/components/Dashboard.tsx` | Modify | Add Q keybind hint for pausing state |
+| `src/hooks/useLoopState.test.ts` | Modify | Add test for canQuit with pausing state |
+| `src/types.ts` | Modify | Add verbose to CLIArgs |
+| `src/index.tsx` | Modify | Parse --verbose flag, update help text |

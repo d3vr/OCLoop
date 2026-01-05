@@ -267,8 +267,9 @@ export function useLoopState(): UseLoopStateReturn {
     const s = state()
     // Can quit from ready state (before iterations start)
     if (s.type === "ready") return true
-    // Can quit from running or paused states
+    // Can quit from running, pausing, or paused states
     if (s.type === "running") return true
+    if (s.type === "pausing") return true
     if (s.type === "paused") return true
     // Can quit from debug state
     if (s.type === "debug") return true

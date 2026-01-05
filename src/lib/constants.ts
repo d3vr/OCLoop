@@ -17,6 +17,8 @@ export const KEYS = {
   S_UPPER: "S",
   T_LOWER: "t",
   T_UPPER: "T",
+  CTRL_P: "\x10", // ASCII 16
+  CTRL_N: "\x0e", // ASCII 14
 } as const
 
 /**

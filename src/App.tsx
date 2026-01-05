@@ -12,7 +12,7 @@ import {
 import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 
 import { useServer } from "./hooks/useServer"
-import { useSSE } from "./hooks/useSSE"
+import { useSSE, type FileDiff } from "./hooks/useSSE"
 import { useLoopState } from "./hooks/useLoopState"
 import { useLoopStats } from "./hooks/useLoopStats"
 import { useSessionStats } from "./hooks/useSessionStats"
@@ -274,8 +274,16 @@ function AppContent(props: AppProps) {
       onStepFinish: (part) => {
         sessionStats.addTokens(part.tokens)
       },
-      onSessionSummary: (summary) => {
-        sessionStats.setDiff(summary)
+      onSessionDiff: (diffs: FileDiff[]) => {
+        // Filter out .loop.log files
+        const filtered = diffs.filter(d => !d.file.endsWith('.loop.log'))
+        
+        // Aggregate stats
+        const additions = filtered.reduce((acc, d) => acc + d.additions, 0)
+        const deletions = filtered.reduce((acc, d) => acc + d.deletions, 0)
+        const files = filtered.length
+        
+        sessionStats.setDiff({ additions, deletions, files })
       },
       onToolUse: (part) => {
         const toolName = part.state.tool

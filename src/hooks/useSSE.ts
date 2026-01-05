@@ -64,6 +64,12 @@ export interface SessionSummary {
   files: number
 }
 
+export interface FileDiff {
+  file: string
+  additions: number
+  deletions: number
+}
+
 /**
  * SSE connection status
  */
@@ -97,6 +103,8 @@ export interface SSEEventHandlers {
   onStepFinish?: (part: StepFinishPart) => void
   /** Called when session summary is updated */
   onSessionSummary?: (summary: SessionSummary) => void
+  /** Called when session diff is updated */
+  onSessionDiff?: (diffs: FileDiff[]) => void
 }
 
 /**
@@ -320,6 +328,21 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
 
         if (props.summary) {
           handlers.onSessionSummary?.(props.summary as SessionSummary)
+        }
+        break
+      }
+
+      case "session.diff": {
+        const props = event.properties as any
+        const eventSessionId = props.sessionID
+
+        // Filter by session if a filter is set
+        if (filterSessionId && eventSessionId && eventSessionId !== filterSessionId) {
+          return
+        }
+
+        if (props.diff) {
+          handlers.onSessionDiff?.(props.diff as FileDiff[])
         }
         break
       }

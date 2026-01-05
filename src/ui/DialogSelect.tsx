@@ -119,7 +119,7 @@ export function DialogSelect(props: DialogSelectProps) {
     }
 
     // Search input handling
-    if (!key.ctrl && !key.meta && input.length === 1) {
+    if (!key.ctrl && !key.meta && input.length === 1 && key.name !== "backspace") {
       setSearch(s => s + input)
     }
     if (key.name === "backspace") {
@@ -167,6 +167,7 @@ export function DialogSelect(props: DialogSelectProps) {
       {/* Search Input */}
       <box style={{ 
         width: "100%", 
+        height: 3,
         borderStyle: "rounded", 
         borderColor: theme().border,
         paddingLeft: 1,
@@ -180,7 +181,7 @@ export function DialogSelect(props: DialogSelectProps) {
       </box>
 
       {/* List */}
-      <box style={{ flexDirection: "column", flexGrow: 1 }}>
+      <box style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
         <Show when={filteredOptions().length > 0} fallback={
           <text>
              <span style={{ fg: theme().textMuted }}>No results found</span>
@@ -201,6 +202,7 @@ export function DialogSelect(props: DialogSelectProps) {
                   }}
                   style={{
                     width: "100%",
+                    height: 1,
                     paddingLeft: 1,
                     paddingRight: 1,
                     backgroundColor: isSelected() ? theme().primary : undefined,
@@ -235,7 +237,7 @@ export function DialogSelect(props: DialogSelectProps) {
       </box>
 
       {/* Footer / Keybinds */}
-      <box style={{ width: "100%", marginTop: 1, gap: 2 }}>
+      <box style={{ width: "100%", marginTop: 1, gap: 2, flexDirection: "row" }}>
         <For each={props.keybinds || []}>
           {(kb) => (
             <text>

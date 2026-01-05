@@ -9,7 +9,7 @@
  */
 
 import type { JSX } from "solid-js"
-import { useTerminalDimensions } from "@opentui/solid"
+import { useTerminalDimensions, useRenderer } from "@opentui/solid"
 import { useTheme } from "../context/ThemeContext"
 
 /**
@@ -26,11 +26,6 @@ export interface DialogProps {
    * Dialog content
    */
   children: JSX.Element
-
-  /**
-   * Optional title for the dialog
-   */
-  title?: string
 
   /**
    * Optional width of the dialog content box
@@ -59,7 +54,7 @@ export interface DialogProps {
  *   const dialog = useDialog()
  *
  *   return (
- *     <Dialog onClose={() => dialog.clear()} title="Confirm Action">
+ *     <Dialog onClose={() => dialog.clear()}>
  *       <text>Are you sure?</text>
  *       <text style={{ marginTop: 1 }}>
  *         <span style={{ fg: "green" }}>[Y]</span>es
@@ -73,6 +68,7 @@ export interface DialogProps {
 export function Dialog(props: DialogProps) {
   const dimensions = useTerminalDimensions()
   const { theme } = useTheme()
+  const renderer = useRenderer()
 
   // Dialog dimensions with defaults
   const dialogWidth = () => props.width ?? 50
@@ -82,11 +78,20 @@ export function Dialog(props: DialogProps) {
   const left = () => Math.floor((dimensions().width - dialogWidth()) / 2)
   const top = () => Math.floor((dimensions().height - dialogHeight()) / 2)
 
+  // Handle backdrop click
+  const handleBackdropClick = (e: any) => {
+    // Don't close if user is selecting text
+    // @ts-ignore - selection property exists at runtime
+    if (renderer.selection?.active) return
+    props.onClose()
+  }
+
   return (
     <>
       {/* Backdrop - full screen semi-transparent overlay */}
       {/* Using opacity 0.6 as RGBA(0, 0, 0, 150) translates to ~59% opacity */}
       <box
+        onMouseUp={handleBackdropClick}
         style={{
           position: "absolute",
           top: 0,
@@ -96,12 +101,11 @@ export function Dialog(props: DialogProps) {
           backgroundColor: "black",
           opacity: 0.6,
         }}
-        // Note: Click handling would require mouse support in opentui
-        // For now, backdrop clicks are handled through input handler
       />
 
       {/* Dialog content box */}
       <box
+        onMouseUp={(e) => e.stopPropagation()}
         style={{
           position: "absolute",
           top: top(),
@@ -112,23 +116,6 @@ export function Dialog(props: DialogProps) {
           flexDirection: "column",
         }}
       >
-        {/* Title bar (if provided) */}
-        {props.title && (
-          <box
-            style={{
-              width: "100%",
-              paddingLeft: 1,
-              paddingRight: 1,
-            }}
-          >
-            <text>
-              <span style={{ fg: theme().primary, bold: true }}>
-                {props.title}
-              </span>
-            </text>
-          </box>
-        )}
-
         {/* Content area */}
         <box
           style={{

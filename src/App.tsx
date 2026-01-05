@@ -38,6 +38,7 @@ import {
 import { copyToClipboard } from "./lib/clipboard"
 import { ThemeProvider } from "./context/ThemeContext"
 import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
+import { CommandProvider, useCommand, type CommandOption } from "./context/CommandContext"
 import { ToastProvider, Toast, useToast } from "./context/ToastContext"
 import {
   Dashboard,
@@ -67,11 +68,13 @@ export function App(props: AppProps) {
   return (
     <ThemeProvider>
       <DialogProvider>
-        <ToastProvider>
-          <AppContent {...props} />
-          <DialogStack />
-          <Toast />
-        </ToastProvider>
+        <CommandProvider>
+          <ToastProvider>
+            <AppContent {...props} />
+            <DialogStack />
+            <Toast />
+          </ToastProvider>
+        </CommandProvider>
       </DialogProvider>
     </ThemeProvider>
   )
@@ -96,6 +99,7 @@ function AppContent(props: AppProps) {
   const renderer = useRenderer()
   const dialog = useDialog()
   const toast = useToast()
+  const command = useCommand()
 
   // Server management
   const server = useServer({
@@ -685,23 +689,7 @@ function AppContent(props: AppProps) {
     }
   })
   
-  /**
-   * Launch terminal or show config dialog
-   */
-  async function handleTerminalLaunch(sid: string) {
-    log.debug("terminal", "Handle launch request", { sessionId: sid, hasConfig: hasTerminalConfig(ocloopConfig()) })
-    const config = ocloopConfig()
-    
-    // If no config, show config dialog
-    if (!hasTerminalConfig(config)) {
-       setShowingTerminalConfig(true)
-       return
-    }
-    
-    // Otherwise launch directly
-    launchConfiguredTerminal(sid, config.terminal)
-  }
-  
+
   /**
    * Execute launch and handle errors
    */
@@ -805,7 +793,41 @@ function AppContent(props: AppProps) {
     () => setShowingTerminalConfig(false)
   )
 
+  // Register commands
+  createEffect(() => {
+    // Re-register commands when session ID changes so we can enable/disable them
+    // and provide current session ID to callbacks
+    const sid = sessionId() || lastSessionId()
+    const url = server.url()
+    const hasSession = !!sid
 
+    command.register(() => [
+      {
+        title: "Copy attach command",
+        value: "copy_attach",
+        category: "Terminal",
+        keybind: "C",
+        disabled: !hasSession,
+        onSelect: () => {
+          if (sid && url) {
+            const cmd = getAttachCommand(url, sid)
+            copyToClipboard(cmd)
+            toast.show({ variant: "success", message: "Copied to clipboard" })
+          }
+        },
+      },
+      {
+        title: "Choose default terminal",
+        value: "terminal_config",
+        category: "Terminal",
+        keybind: "T",
+        disabled: !hasSession,
+        onSelect: () => {
+          setShowingTerminalConfig(true)
+        },
+      },
+    ])
+  })
 
   // Input handler for keybindings
   onMount(() => {
@@ -844,7 +866,7 @@ function AppContent(props: AppProps) {
         if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
            const sid = sessionId() || lastSessionId()
            if (sid) {
-              handleTerminalLaunch(sid)
+              command.trigger("terminal_config")
            } else {
               toast.show({ variant: "info", message: "No active session to attach to" })
            }
@@ -882,7 +904,7 @@ function AppContent(props: AppProps) {
       if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
          const sid = sessionId() || lastSessionId()
          if (sid) {
-            handleTerminalLaunch(sid)
+            command.trigger("terminal_config")
          } else {
             toast.show({ variant: "info", message: "No active session to attach to" })
          }

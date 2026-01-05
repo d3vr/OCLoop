@@ -8,7 +8,7 @@ Fix remaining UI/UX issues in the DialogSelect component, Terminal Config dialog
 
 ### Phase 1: DialogSelect Core Layout Fixes
 
-- [ ] **Fix search input and list item height issues**
+- [x] **Fix search input and list item height issues**
   - File: `src/ui/DialogSelect.tsx`
   - Search input is "squished" because box lacks explicit height
   - List items overlap because they lack explicit height
@@ -17,12 +17,12 @@ Fix remaining UI/UX issues in the DialogSelect component, Terminal Config dialog
     - Line ~183: Add `overflow: "hidden"` to list container box style
     - Line ~202: Add `height: 1` to each list item box style
 
-- [ ] **Fix footer layout - should be row, not column**
+- [x] **Fix footer layout - should be row, not column**
   - File: `src/ui/DialogSelect.tsx`
   - Line ~238: Add `flexDirection: "row"` to footer box style
   - The keybind hints are stacking vertically instead of horizontally
 
-- [ ] **Fix backspace not working in search input**
+- [x] **Fix backspace not working in search input**
   - File: `src/ui/DialogSelect.tsx`
   - Line ~122: The character input check `input.length === 1` matches backspace before the backspace handler runs
   - Change from:

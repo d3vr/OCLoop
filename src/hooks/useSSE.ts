@@ -25,6 +25,45 @@ function truncateForLog(data: unknown, maxValueLength = MAX_LOG_VALUE_LENGTH): u
   return data
 }
 
+export interface ToolPart {
+  type: "tool-use"
+  id: string
+  state: {
+    tool: string
+    input: unknown
+    status: string
+  }
+}
+
+export interface TextPart {
+  type: "text"
+  id: string
+  text: string
+}
+
+export interface ReasoningPart {
+  type: "reasoning"
+  id: string
+  text: string
+}
+
+export interface StepFinishPart {
+  type: "step-finish"
+  id: string
+  tokens: {
+    input: number
+    output: number
+    reasoning: number
+    cache: { read: number; write: number }
+  }
+}
+
+export interface SessionSummary {
+  additions: number
+  deletions: number
+  files: number
+}
+
 /**
  * SSE connection status
  */
@@ -48,6 +87,16 @@ export interface SSEEventHandlers {
   onSessionError?: (sessionId: string | undefined, error: string) => void
   /** Called for any event (useful for debugging) */
   onAnyEvent?: (event: Event) => void
+  /** Called when a tool is used */
+  onToolUse?: (part: ToolPart) => void
+  /** Called when a message part (text) is received */
+  onMessageText?: (part: TextPart, role: "user" | "assistant") => void
+  /** Called when reasoning is received */
+  onReasoning?: (part: ReasoningPart) => void
+  /** Called when a step finishes */
+  onStepFinish?: (part: StepFinishPart) => void
+  /** Called when session summary is updated */
+  onSessionSummary?: (summary: SessionSummary) => void
 }
 
 /**
@@ -129,6 +178,11 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
   // Flag to track if we should keep trying to reconnect
   let shouldReconnect = true
 
+  // Track message roles: messageID -> role
+  const messageRoles = new Map<string, "user" | "assistant">()
+  // Track seen part IDs to avoid duplicates
+  const seenPartIds = new Set<string>()
+
   /**
    * Process an incoming SSE event and call appropriate handlers
    */
@@ -208,6 +262,65 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
           return
         }
         handlers.onSessionStatus?.(eventSessionId, event.properties.status)
+        break
+      }
+
+      case "message.updated": {
+        const props = event.properties as any
+        const message = props.info || props.message
+        if (message?.id && message?.role) {
+          messageRoles.set(message.id, message.role)
+        }
+        break
+      }
+
+      case "message.part.updated": {
+        const props = event.properties as any
+        const part = props.part
+        const messageId = props.messageID
+        const eventSessionId = props.sessionID
+
+        // Filter by session if a filter is set
+        if (filterSessionId && eventSessionId && eventSessionId !== filterSessionId) {
+          return
+        }
+
+        if (!part || !part.id) return
+
+        if (part.type === "tool-use") {
+          handlers.onToolUse?.(part as ToolPart)
+        } else if (part.type === "text") {
+          if (!seenPartIds.has(part.id)) {
+            seenPartIds.add(part.id)
+            const role = messageRoles.get(messageId) || "assistant"
+            handlers.onMessageText?.(part as TextPart, role)
+          }
+        } else if (part.type === "reasoning") {
+          if (!seenPartIds.has(part.id)) {
+            seenPartIds.add(part.id)
+            handlers.onReasoning?.(part as ReasoningPart)
+          }
+        } else if (part.type === "step-finish") {
+          if (!seenPartIds.has(part.id)) {
+            seenPartIds.add(part.id)
+            handlers.onStepFinish?.(part as StepFinishPart)
+          }
+        }
+        break
+      }
+
+      case "session.updated": {
+        const props = event.properties as any
+        const eventSessionId = props.sessionID || props.id
+
+        // Filter by session if a filter is set
+        if (filterSessionId && eventSessionId && eventSessionId !== filterSessionId) {
+          return
+        }
+
+        if (props.summary) {
+          handlers.onSessionSummary?.(props.summary as SessionSummary)
+        }
         break
       }
     }

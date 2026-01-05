@@ -46,7 +46,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
       height={10}
     >
       {/* Header */}
-      <box style={{ width: "100%", justifyContent: "space-between", marginBottom: 1 }}>
+      <box style={{ width: "100%", flexDirection: "row", justifyContent: "space-between", marginBottom: 1 }}>
         <text>
           <span style={{ bold: true, fg: theme().text }}>{props.title}</span>
         </text>
@@ -63,7 +63,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
       </box>
 
       {/* Buttons */}
-      <box style={{ width: "100%", justifyContent: "flex-end", gap: 2 }}>
+      <box style={{ width: "100%", flexDirection: "row", justifyContent: "flex-end", gap: 2 }}>
         {/* Cancel Button */}
         <box
           style={{

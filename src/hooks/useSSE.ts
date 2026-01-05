@@ -3,6 +3,28 @@ import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 import type { Event, Todo, SessionStatus } from "@opencode-ai/sdk/v2"
 import { log } from "../lib/debug-logger"
 
+/** Maximum length for individual string values in logged event data */
+const MAX_LOG_VALUE_LENGTH = 200
+
+/**
+ * Recursively truncate string values in data for logging.
+ * Preserves JSON structure while limiting individual string lengths.
+ */
+function truncateForLog(data: unknown, maxValueLength = MAX_LOG_VALUE_LENGTH): unknown {
+  if (typeof data === "string" && data.length > maxValueLength) {
+    return data.substring(0, maxValueLength) + `...[${data.length} chars]`
+  }
+  if (Array.isArray(data)) {
+    return data.map(v => truncateForLog(v, maxValueLength))
+  }
+  if (data && typeof data === "object") {
+    return Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, truncateForLog(v, maxValueLength)])
+    )
+  }
+  return data
+}
+
 /**
  * SSE connection status
  */
@@ -111,7 +133,7 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
    * Process an incoming SSE event and call appropriate handlers
    */
   function processEvent(event: Event): void {
-    log.debug("sse", "Event received", { type: event.type, sessionId: sessionId?.(), data: event.properties })
+    log.debug("sse", "Event received", { type: event.type, sessionId: sessionId?.(), data: truncateForLog(event.properties) })
 
     // Call the generic handler first
     if (handlers.onAnyEvent) {

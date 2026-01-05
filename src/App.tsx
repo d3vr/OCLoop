@@ -289,7 +289,12 @@ function AppContent(props: AppProps) {
         const toolName = part.state.tool
         const input = part.state.input as Record<string, unknown>
         const preview = getToolPreview(toolName, input)
-        activityLog.addEvent("tool_use", preview, { detail: toolName })
+        
+        if (toolName === "read") {
+          activityLog.addEvent("file_read", preview)
+        } else {
+          activityLog.addEvent("tool_use", preview, { detail: toolName })
+        }
       },
       onMessageText: (part, role) => {
         const type = role === "user" ? "user_message" : "assistant_message"

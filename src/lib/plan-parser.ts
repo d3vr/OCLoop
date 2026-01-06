@@ -147,11 +147,20 @@ export function parsePlan(content: string): PlanProgress {
  * @returns The summary content between tags or null if not found
  */
 export function parsePlanComplete(content: string): string | null {
-  // Use matchAll to find all occurrences and take the last one
-  // This handles cases where the tag is mentioned in documentation earlier in the file
-  const matches = [...content.matchAll(/<plan-complete>([\s\S]*?)<\/plan-complete>/g)]
+  // Use matchAll to find all occurrences
+  // Regex explanation:
+  // ^<plan-complete> : Match start tag at the beginning of a line (ignoring leading whitespace handled by code structure if needed, but here we enforce strict start)
+  // ([\s\S]*?)       : Capture content non-greedily
+  // <\/plan-complete>: Match end tag
+  // m                : Multiline flag to allow ^ to match start of lines
+  // g                : Global flag for matchAll
+  // 
+  // We look for tags that start a line to avoid matching documentation examples inside backticks
+  const matches = [...content.matchAll(/^<plan-complete>([\s\S]*?)<\/plan-complete>/gm)]
+  
   if (matches.length === 0) return null
   
+  // Return the last match found
   return matches[matches.length - 1][1].trim()
 }
 

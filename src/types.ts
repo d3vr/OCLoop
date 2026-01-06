@@ -65,4 +65,9 @@ export interface CLIArgs {
   run?: boolean  // Start iterations immediately without waiting for user input
   debug?: boolean  // Enable debug/sandbox mode without plan file validation
   verbose?: boolean  // Enable verbose logging (keyboard events, etc.)
+  /**
+   * Agent to use for all sessions in this run.
+   * If not specified, uses the default agent from OpenCode config.
+   */
+  agent?: string
 }

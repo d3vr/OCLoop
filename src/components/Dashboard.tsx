@@ -16,6 +16,7 @@ export interface DashboardProps {
   stats: UseLoopStatsReturn
   currentTask: string | null
   model?: string
+  agent?: string
 }
 
 /**
@@ -231,6 +232,14 @@ export function Dashboard(props: DashboardProps) {
           <text style={{ marginLeft: 2 }}>
             <span style={{ fg: theme().textMuted }}>Model</span>
             <span style={{ fg: theme().text }}> {props.model}</span>
+          </text>
+        </Show>
+
+        {/* Agent display */}
+        <Show when={props.agent}>
+          <text style={{ marginLeft: 2 }}>
+            <span style={{ fg: theme().textMuted }}>Agent</span>
+            <span style={{ fg: theme().text }}> {props.agent}</span>
           </text>
         </Show>
 

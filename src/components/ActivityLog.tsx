@@ -14,6 +14,8 @@ export interface ActivityLogProps {
   tokens?: SessionTokens;
   /** Session diff statistics */
   diff?: SessionDiff;
+  /** Whether to show the scrollbar */
+  showScrollbar?: boolean;
 }
 
 /**
@@ -155,16 +157,17 @@ export function ActivityLog(props: ActivityLogProps) {
         stickyScroll={true}
         stickyStart="bottom"
         verticalScrollbarOptions={{
-          visible: true,
+          visible: props.showScrollbar ?? true,
           trackOptions: {
-            foregroundColor: theme().primary,
+            foregroundColor: theme().border,
+            backgroundColor: theme().backgroundElement,
           },
         }}
         viewportOptions={{
-          paddingRight: 1,
+          paddingRight: props.showScrollbar ? 1 : 0,
         }}
+        flexGrow={1}
         style={{
-          flexGrow: 1,
           flexDirection: "column",
           paddingLeft: 1,
           paddingBottom: 2,

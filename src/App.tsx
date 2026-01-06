@@ -891,6 +891,21 @@ function AppContent(props: AppProps) {
           setShowingTerminalConfig(true)
         },
       },
+      {
+        title: "Toggle scrollbar",
+        value: "toggle_scrollbar",
+        category: "View",
+        onSelect: async () => {
+          const current = ocloopConfig().scrollbar_visible ?? true
+          const newConfig = {
+            ...ocloopConfig(),
+            scrollbar_visible: !current
+          }
+          setOcloopConfig(newConfig)
+          await saveConfig(newConfig)
+          dialog.clear()
+        },
+      },
     ])
   })
 
@@ -1057,6 +1072,7 @@ function AppContent(props: AppProps) {
         events={activityLog.events()} 
         tokens={sessionStats.tokens()}
         diff={sessionStats.diff()}
+        showScrollbar={ocloopConfig().scrollbar_visible ?? true}
       />
 
       {/* Overlays */}

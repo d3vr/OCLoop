@@ -37,6 +37,7 @@ export type TerminalConfig = KnownTerminalConfig | CustomTerminalConfig
  */
 export interface OcloopConfig {
   terminal?: TerminalConfig
+  scrollbar_visible?: boolean
 }
 
 /**

@@ -1,17 +1,26 @@
-# OCLoop
+```
+█▀▀█ █▀▀▀ █    █▀▀█ █▀▀█ █▀▀█
+█░░█ █░░░ █    █░░█ █░░█ █▀▀▀
+▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀
+```
 
-A loop harness that orchestrates [OpenCode](https://opencode.ai) to execute tasks from a PLAN.md file iteratively. Each iteration runs in an isolated session, with the OpenCode TUI embedded and visible throughout.
+*Round and round we go*
+
+---
+
+A loop harness that orchestrates [OpenCode](https://opencode.ai) to execute tasks from a PLAN.md file iteratively. Each iteration runs in an isolated session, with full visibility into what OpenCode is doing.
 
 ## Features
 
-- **Automated task execution**: Execute a plan one task at a time, each in a fresh context window
-- **Full visibility**: See the OpenCode TUI at all times, attach to interact when needed
-- **Knowledge persistence**: Learnings are documented in AGENTS.md and docs/ across iterations
-- **Session recovery**: Automatically resume interrupted runs from where you left off
-- **Smart Dashboard**: Visual dashboard with live iteration timing, averages, and ETA
-- **Theme integration**: Automatically inherits your OpenCode theme configuration
-- **Clean boundaries**: New session per iteration, pause between iterations
-- **Progress tracking**: Visual progress bar and status indicators
+- **Automated task execution** — Execute a plan one task at a time, each in a fresh context window
+- **Live dashboard** — Visual status with iteration timing, averages, ETA, and progress bar
+- **Activity log** — Real-time view of tool usage, file edits, token counts, and git diffs
+- **Session recovery** — Resume interrupted runs from where you left off
+- **Terminal integration** — Launch OpenCode in an external terminal to interact mid-iteration
+- **Command palette** — Quick access to actions via `Ctrl+P`
+- **Knowledge persistence** — Learnings documented in AGENTS.md and docs/ across iterations
+- **Theme sync** — Automatically inherits your OpenCode theme (32 themes bundled)
+- **Debug mode** — Sandbox for manual session creation without a plan file
 
 ## Requirements
 
@@ -59,6 +68,8 @@ See `examples/CREATE_PLAN.md` for a prompt to help generate plans for your proje
 ocloop
 ```
 
+3. **Press `S`** to start executing tasks (or use `-r` to start immediately)
+
 ## Usage
 
 ```
@@ -67,32 +78,33 @@ Usage: ocloop [options]
 Options:
   -p, --port <number>      Server port (default: 4096, falls back to random)
   -m, --model <string>     Model to use (passed to opencode)
+  -r, --run                Start iterations immediately (skip the ready screen)
+  -d, --debug              Debug/sandbox mode (no plan file required)
+  -v, --verbose            Enable verbose logging to .loop.log
   --prompt <path>          Path to loop prompt file (default: .loop-prompt.md)
   --plan <path>            Path to plan file (default: PLAN.md)
   -h, --help               Show help
 
 Examples:
   ocloop                           # Start with defaults
+  ocloop -r                        # Start immediately without waiting
   ocloop -m claude-sonnet-4        # Use specific model
   ocloop --plan my-plan.md         # Use custom plan file
+  ocloop -d                        # Debug mode for experimentation
 ```
 
 ## Keybindings
 
-| Key       | Condition     | Action                       |
-| --------- | ------------- | ---------------------------- |
-| `Ctrl+\`  | Always        | Toggle attach/detach         |
-| `S`       | Ready state   | Start iterations             |
-| `Space`   | Detached only | Toggle pause/resume          |
-| `Q`       | Detached only | Show quit confirmation       |
-| `R`       | Error state   | Retry after recoverable error|
-
-### Attach/Detach Mode
-
-- **Detached** (default): OCLoop controls input. You can pause, quit, and observe.
-- **Attached**: Input goes directly to the OpenCode TUI. Use this to interact with OpenCode mid-iteration.
-
-Press `Ctrl+\` to toggle between modes.
+| Key     | State        | Action                          |
+| ------- | ------------ | ------------------------------- |
+| `S`     | Ready        | Start iterations                |
+| `Space` | Running      | Pause after current task        |
+| `Space` | Paused       | Resume iterations               |
+| `T`     | Running/Paused/Debug | Open terminal launcher  |
+| `Ctrl+P`| Any          | Open command palette            |
+| `Q`     | Most states  | Show quit confirmation          |
+| `R`     | Error        | Retry after recoverable error   |
+| `N`     | Debug mode   | Create new session              |
 
 ## Plan File Format
 
@@ -127,9 +139,20 @@ Using bold task IDs helps with organization:
 ### Completion
 
 The loop ends when:
-- OpenCode creates a `.loop-complete` file (indicating all automatable tasks are done)
+- OpenCode creates a `.loop-complete` file (all automatable tasks done)
 - You quit manually with `Q`
 - An unrecoverable error occurs
+
+## Files
+
+| File                | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `PLAN.md`           | Task list to execute                             |
+| `.loop-prompt.md`   | Prompt sent to OpenCode each iteration           |
+| `.loop-complete`    | Created when all automatable tasks are complete  |
+| `.loop-state.json`  | Auto-saved state for resuming interrupted runs   |
+| `AGENTS.md`         | Persistent knowledge for OpenCode across sessions|
+| `.loop.log`         | Debug log (when running with `-v`)               |
 
 ## Configuration
 
@@ -139,25 +162,19 @@ OCLoop respects OpenCode's environment variables for API keys and configuration.
 
 ### Theming
 
-OCLoop automatically detects your OpenCode theme configuration from `~/.local/state/opencode/kv.json` and applies it to the dashboard. If no theme is found, it defaults to the OpenCode theme.
+OCLoop automatically detects your OpenCode theme from `~/.local/state/opencode/kv.json` and applies it to the dashboard. Includes all 32 bundled OpenCode themes.
 
-### Files
+### Terminal Preferences
 
-| File                | Purpose                                          |
-| ------------------- | ------------------------------------------------ |
-| `PLAN.md`           | Task list to execute                             |
-| `.loop-prompt.md`   | Prompt sent to OpenCode each iteration           |
-| `.loop-complete`    | Created when all automatable tasks are complete  |
-| `AGENTS.md`         | Persistent knowledge for OpenCode across sessions|
-| `.loop-state.json`  | Auto-saved state for resuming interrupted runs   |
+On first use of `T` (terminal launcher), OCLoop detects installed terminals and saves your preference to `~/.config/ocloop/ocloop.json`. Supports: Alacritty, Kitty, WezTerm, GNOME Terminal, Konsole, and more.
 
 ## Examples
 
 The `examples/` directory contains starter templates:
 
-- `PLAN.md` - Example task plan demonstrating all supported markers (`[ ]`, `[x]`, `[MANUAL]`, `[BLOCKED]`)
-- `loop-prompt.md` - Example loop prompt with best practices for knowledge persistence
-- `CREATE_PLAN.md` - Prompt to help generate a plan for your project
+- `PLAN.md` — Example task plan demonstrating all supported markers
+- `loop-prompt.md` — Example loop prompt with best practices
+- `CREATE_PLAN.md` — Prompt to help generate a plan for your project
 
 To use them:
 
@@ -202,9 +219,9 @@ Create a `PLAN.md` file with tasks. At minimum:
 
 ### Loop seems stuck
 
-- Press `Ctrl+\` to attach and see what OpenCode is doing
+- Press `T` to launch OpenCode in an external terminal and see what's happening
 - Check if OpenCode is waiting for input or confirmation
-- You can interact directly while attached
+- Look at the activity log for recent events
 
 ## License
 

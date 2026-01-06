@@ -25,7 +25,7 @@ import { getToolPreview } from "./lib/format"
 import { shutdownManager } from "./lib/shutdown"
 import {
   ensureGitignore,
-} from "./lib/loop-state"
+} from "./lib/project"
 import { loadConfig, saveConfig, hasTerminalConfig, type OcloopConfig } from "./lib/config"
 import { 
   detectInstalledTerminals, 

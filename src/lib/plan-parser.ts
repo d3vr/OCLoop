@@ -147,8 +147,12 @@ export function parsePlan(content: string): PlanProgress {
  * @returns The summary content between tags or null if not found
  */
 export function parsePlanComplete(content: string): string | null {
-  const match = content.match(/<plan-complete>([\s\S]*?)<\/plan-complete>/)
-  return match ? match[1].trim() : null
+  // Use matchAll to find all occurrences and take the last one
+  // This handles cases where the tag is mentioned in documentation earlier in the file
+  const matches = [...content.matchAll(/<plan-complete>([\s\S]*?)<\/plan-complete>/g)]
+  if (matches.length === 0) return null
+  
+  return matches[matches.length - 1][1].trim()
 }
 
 /**

@@ -1,8 +1,7 @@
 import { createContext, useContext, createSignal, onCleanup, type JSX, type Accessor } from "solid-js"
 import { useDialog } from "./DialogContext"
 import { DialogSelect, type DialogSelectOption } from "../ui/DialogSelect"
-import { useInput } from "../hooks/useInput"
-import { KEYS } from "../lib/constants"
+import { useKeyboard } from "@opentui/solid"
 
 export interface CommandOption extends DialogSelectOption {
   keybind?: string
@@ -61,12 +60,12 @@ export function CommandProvider(props: { children: JSX.Element }) {
     }
   }
 
-  useInput((input, key) => {
+  useKeyboard((key) => {
     if (suspended()) return
 
     // Only handle if no dialogs are open
     if (!dialog.hasDialogs()) {
-      if (input === KEYS.CTRL_P) {
+      if (key.ctrl && key.name === "p") {
         show()
       }
     }

@@ -93,6 +93,14 @@ export function DialogSelect(props: DialogSelectProps) {
     }
   }
 
+  const move = (direction: number) => {
+    if (filteredOptions().length === 0) return
+    let next = selectedIndex() + direction
+    if (next < 0) next = filteredOptions().length - 1
+    if (next >= filteredOptions().length) next = 0
+    moveTo(next)
+  }
+
   // Handle keyboard input
   useKeyboard((key) => {
     // Escape handled by Dialog backdrop/onClose
@@ -114,29 +122,34 @@ export function DialogSelect(props: DialogSelectProps) {
 
     if (key.name === "up" || (key.ctrl && key.name === "p")) {
       key.preventDefault()
-      const newIndex = Math.max(0, selectedIndex() - 1)
-      moveTo(newIndex)
+      move(-1)
       return
     }
 
     if (key.name === "down" || (key.ctrl && key.name === "n")) {
       key.preventDefault()
-      const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + 1)
-      moveTo(newIndex)
+      move(1)
       return
     }
 
     if (key.name === "pageup") {
       key.preventDefault()
-      const newIndex = Math.max(0, selectedIndex() - 6)
-      moveTo(newIndex)
+      if (selectedIndex() === 0) {
+        move(-1)  // wrap to last
+      } else {
+        moveTo(Math.max(0, selectedIndex() - 6))  // clamp
+      }
       return
     }
 
     if (key.name === "pagedown") {
       key.preventDefault()
-      const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + 6)
-      moveTo(newIndex)
+      const lastIndex = filteredOptions().length - 1
+      if (selectedIndex() === lastIndex) {
+        move(1)  // wrap to first
+      } else {
+        moveTo(Math.min(lastIndex, selectedIndex() + 6))  // clamp
+      }
       return
     }
 

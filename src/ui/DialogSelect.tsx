@@ -201,9 +201,11 @@ export function DialogSelect(props: DialogSelectProps) {
 
       {/* List */}
       <Show when={filteredOptions().length > 0} fallback={
-        <text>
-           <span style={{ fg: theme().textMuted }}>No results found</span>
-        </text>
+        <box style={{ flexGrow: 1 }}>
+          <text>
+             <span style={{ fg: theme().textMuted }}>No results found</span>
+          </text>
+        </box>
       }>
         <scrollbox
           ref={(r) => scroll = r}

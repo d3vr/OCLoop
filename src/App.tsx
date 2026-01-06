@@ -937,7 +937,12 @@ function AppContent(props: AppProps) {
         if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
            const sid = sessionId() || lastSessionId()
            if (sid) {
-              command.trigger("terminal_config")
+              const config = ocloopConfig()
+              if (hasTerminalConfig(config)) {
+                 launchConfiguredTerminal(sid, config.terminal)
+              } else {
+                 command.trigger("terminal_config")
+              }
            } else {
               toast.show({ variant: "info", message: "No active session to attach to" })
            }
@@ -975,7 +980,12 @@ function AppContent(props: AppProps) {
       if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
          const sid = sessionId() || lastSessionId()
          if (sid) {
-            command.trigger("terminal_config")
+            const config = ocloopConfig()
+            if (hasTerminalConfig(config)) {
+               launchConfiguredTerminal(sid, config.terminal)
+            } else {
+               command.trigger("terminal_config")
+            }
          } else {
             toast.show({ variant: "info", message: "No active session to attach to" })
          }

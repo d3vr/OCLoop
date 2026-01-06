@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { parsePlan, parseRemainingTasks, getCurrentTaskFromContent, parseTaskLine, parseCompletionFile } from "./plan-parser"
+import { parsePlan, getCurrentTaskFromContent, parseTaskLine, parsePlanComplete } from "./plan-parser"
 
 describe("parseTaskLine", () => {
   it("should parse completed tasks", () => {
@@ -244,90 +244,32 @@ More text here.
   })
 })
 
-describe("parseRemainingTasks", () => {
-  it("should return empty arrays for empty content", () => {
-    const result = parseRemainingTasks("")
-
-    expect(result.manualTasks).toEqual([])
-    expect(result.blockedTasks).toEqual([])
+describe("parsePlanComplete", () => {
+  it("should return null when no tag present", () => {
+    const content = "Just some content"
+    expect(parsePlanComplete(content)).toBeNull()
   })
 
-  it("should extract MANUAL task descriptions", () => {
-    const content = `
-- [MANUAL] Manual testing task
-- [MANUAL] Another manual task
-- [ ] [MANUAL] Tagged manual task
-`
-    const result = parseRemainingTasks(content)
-
-    expect(result.manualTasks).toEqual([
-      "Manual testing task",
-      "Another manual task",
-      "Tagged manual task"
-    ])
-    expect(result.blockedTasks).toEqual([])
+  it("should extract content between tags", () => {
+    const content = "Start <plan-complete>Summary text</plan-complete> End"
+    expect(parsePlanComplete(content)).toBe("Summary text")
   })
 
-  it("should extract BLOCKED task descriptions with reasons", () => {
+  it("should handle multiline content", () => {
     const content = `
-- [BLOCKED: waiting for API] Blocked task one
-- [BLOCKED: needs review] Blocked task two
-- [ ] [BLOCKED: upstream] Tagged blocked task
+Start
+<plan-complete>
+Line 1
+Line 2
+</plan-complete>
+End
 `
-    const result = parseRemainingTasks(content)
-
-    expect(result.manualTasks).toEqual([])
-    expect(result.blockedTasks).toEqual([
-      "[BLOCKED: waiting for API] Blocked task one",
-      "[BLOCKED: needs review] Blocked task two",
-      "[BLOCKED: upstream] Tagged blocked task"
-    ])
+    expect(parsePlanComplete(content)).toBe("Line 1\nLine 2")
   })
 
-  it("should handle BLOCKED tasks without reason", () => {
-    const content = `
-- [BLOCKED] Simple blocked task
-`
-    const result = parseRemainingTasks(content)
-
-    expect(result.blockedTasks).toEqual(["Simple blocked task"])
-  })
-
-  it("should extract both MANUAL and BLOCKED tasks", () => {
-    const content = `
-## Backlog
-
-- [x] **1.1** Completed task
-- [MANUAL] **2.1** Manual testing task
-- [BLOCKED: needs API] **2.2** Blocked task
-`
-    const result = parseRemainingTasks(content)
-
-    expect(result.manualTasks).toEqual(["**2.1** Manual testing task"])
-    expect(result.blockedTasks).toEqual(["[BLOCKED: needs API] **2.2** Blocked task"])
-  })
-
-  it("should handle case-insensitive BLOCKED tags", () => {
-    const content = `
-- [blocked: reason] Task one
-- [Blocked: reason] Task two
-- [BLOCKED: reason] Task three
-`
-    const result = parseRemainingTasks(content)
-
-    expect(result.blockedTasks.length).toBe(3)
-  })
-
-  it("should ignore completed and pending tasks", () => {
-    const content = `
-- [x] Completed task
-- [ ] Pending task
-- [MANUAL] Manual task
-`
-    const result = parseRemainingTasks(content)
-
-    expect(result.manualTasks).toEqual(["Manual task"])
-    expect(result.blockedTasks).toEqual([])
+  it("should handle tag at end of file", () => {
+    const content = "Tasks...\n<plan-complete>Done</plan-complete>"
+    expect(parsePlanComplete(content)).toBe("Done")
   })
 })
 
@@ -422,23 +364,5 @@ describe("getCurrentTaskFromContent", () => {
     const result = getCurrentTaskFromContent(content)
 
     expect(result).toBe("Create `src/components/Dashboard.tsx` with props")
-  })
-})
-
-describe("parseCompletionFile", () => {
-  it("should return rawContent", async () => {
-    const path = "/tmp/test-completion-file.md"
-    const content = "- [MANUAL] test task"
-    await Bun.write(path, content)
-    
-    const result = await parseCompletionFile(path)
-    expect(result.rawContent).toBe(content)
-    expect(result.manualTasks).toEqual(["test task"])
-  })
-  
-  it("should return empty string for non-existent file", async () => {
-     const result = await parseCompletionFile("/non/existent/path")
-     expect(result.rawContent).toBe("")
-     expect(result.manualTasks).toEqual([])
   })
 })

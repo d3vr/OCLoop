@@ -1,6 +1,7 @@
 import { createSignal, createEffect, onMount, For, Show } from "solid-js"
 import { useInput } from "../hooks/useInput"
 import fuzzysort from "fuzzysort"
+import { ScrollBoxRenderable } from "@opentui/core"
 import { Dialog } from "./Dialog"
 import { useTheme, selectedForeground } from "../context/ThemeContext"
 import { truncate } from "../lib/locale"
@@ -41,9 +42,7 @@ export function DialogSelect(props: DialogSelectProps) {
   const [search, setSearch] = createSignal("")
   const [filteredOptions, setFilteredOptions] = createSignal<DialogSelectOption[]>([])
   const [selectedIndex, setSelectedIndex] = createSignal(0)
-  const [viewportStart, setViewportStart] = createSignal(0)
-  
-  const ITEMS_PER_PAGE = 6
+  let scroll: ScrollBoxRenderable | undefined
 
   // Filter options when search changes
   createEffect(() => {
@@ -64,8 +63,27 @@ export function DialogSelect(props: DialogSelectProps) {
     }
     
     setSelectedIndex(0)
-    setViewportStart(0)
+    scroll?.scrollTo({ x: 0, y: 0 })
   })
+
+  const moveTo = (index: number) => {
+    setSelectedIndex(index)
+    if (props.onMove) props.onMove(filteredOptions()[index])
+
+    const selectedOption = filteredOptions()[index]
+    if (!selectedOption || !scroll) return
+
+    const child = scroll.getChildren().find((c: any) => c.id === selectedOption.value)
+    
+    if (child) {
+      const relativeY = child.y - scroll.y
+      if (relativeY < 0) {
+        scroll.scrollBy({ x: 0, y: relativeY })
+      } else if (relativeY >= 6) {
+        scroll.scrollBy({ x: 0, y: relativeY - 6 + 1 })
+      }
+    }
+  }
 
   // Handle keyboard input
   useInput((input, key) => {
@@ -86,38 +104,22 @@ export function DialogSelect(props: DialogSelectProps) {
 
     if (key.name === "up" || (input === KEYS.CTRL_P)) {
       const newIndex = Math.max(0, selectedIndex() - 1)
-      setSelectedIndex(newIndex)
-      // Scroll up if needed
-      if (newIndex < viewportStart()) {
-        setViewportStart(newIndex)
-      }
-      if (props.onMove) props.onMove(filteredOptions()[newIndex])
+      moveTo(newIndex)
     }
 
     if (key.name === "down" || (input === KEYS.CTRL_N)) {
       const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + 1)
-      setSelectedIndex(newIndex)
-      // Scroll down if needed
-      if (newIndex >= viewportStart() + ITEMS_PER_PAGE) {
-        setViewportStart(newIndex - ITEMS_PER_PAGE + 1)
-      }
-      if (props.onMove) props.onMove(filteredOptions()[newIndex])
+      moveTo(newIndex)
     }
 
     if (key.name === "pageup") {
-      const newIndex = Math.max(0, selectedIndex() - ITEMS_PER_PAGE)
-      setSelectedIndex(newIndex)
-      if (newIndex < viewportStart()) {
-        setViewportStart(newIndex)
-      }
+      const newIndex = Math.max(0, selectedIndex() - 6)
+      moveTo(newIndex)
     }
 
     if (key.name === "pagedown") {
-      const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + ITEMS_PER_PAGE)
-      setSelectedIndex(newIndex)
-      if (newIndex >= viewportStart() + ITEMS_PER_PAGE) {
-        setViewportStart(newIndex - ITEMS_PER_PAGE + 1)
-      }
+      const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + 6)
+      moveTo(newIndex)
     }
 
     // Search input handling
@@ -145,10 +147,7 @@ export function DialogSelect(props: DialogSelectProps) {
     }
   })
 
-  // Calculate visible items
-  const visibleItems = () => {
-    return filteredOptions().slice(viewportStart(), viewportStart() + ITEMS_PER_PAGE)
-  }
+
 
   return (
     <Dialog 
@@ -183,19 +182,24 @@ export function DialogSelect(props: DialogSelectProps) {
       </box>
 
       {/* List */}
-      <box style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
+      <scrollbox
+        ref={(r) => scroll = r}
+        maxHeight={6}
+        scrollbarOptions={{ visible: false }}
+        style={{ flexDirection: "column", flexGrow: 1 }}
+      >
         <Show when={filteredOptions().length > 0} fallback={
           <text>
              <span style={{ fg: theme().textMuted }}>No results found</span>
           </text>
         }>
-          <For each={visibleItems()}>
+          <For each={filteredOptions()}>
             {(option, i) => {
-              const index = () => viewportStart() + i()
-              const isSelected = () => index() === selectedIndex()
+              const isSelected = () => i() === selectedIndex()
               
               return (
                 <box
+                  id={option.value}
                   onMouseUp={() => {
                     if (!option.disabled) {
                       if (option.onSelect) option.onSelect()
@@ -236,7 +240,7 @@ export function DialogSelect(props: DialogSelectProps) {
             }}
           </For>
         </Show>
-      </box>
+      </scrollbox>
 
       {/* Footer / Keybinds */}
       <box style={{ width: "100%", marginTop: 1, gap: 2, flexDirection: "row" }}>

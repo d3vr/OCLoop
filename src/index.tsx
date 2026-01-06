@@ -33,6 +33,7 @@ the opencode TUI embedded and visible throughout.
 Options:
   -p, --port <number>      Server port (opencode defaults: try 4096, then random)
   -m, --model <string>     Model to use (passed to opencode)
+  -a, --agent <string>     Agent to use (passed to opencode)
   -r, --run                Start iterations immediately (default: wait for [S])
   -d, --debug              Debug/sandbox mode (no plan file validation, manual sessions)
   --verbose                Enable verbose logging (keyboard events, etc.)
@@ -45,6 +46,7 @@ Examples:
   ocloop                           # Start, wait for [S] to begin
   ocloop -r                        # Start iterations immediately
   ocloop -m claude-sonnet-4        # Use specific model
+  ocloop -a plan                   # Use specific agent
   ocloop --plan my-plan.md         # Use custom plan file
 `)
   process.exit(0)
@@ -91,6 +93,16 @@ function parseArgs(argv: string[]): CLIArgs {
           process.exit(1)
         }
         args.model = model
+        break
+
+      case "-a":
+      case "--agent":
+        const agent = argv[++i]
+        if (!agent) {
+          console.error("Error: --agent requires an argument")
+          process.exit(1)
+        }
+        args.agent = agent
         break
 
       case "--prompt":
@@ -189,7 +201,8 @@ async function main(): Promise<void> {
     prompt: args.promptFile, 
     debug: args.debug, 
     run: args.run,
-    model: args.model
+    model: args.model,
+    agent: args.agent
   })
 
   // Log plan file status

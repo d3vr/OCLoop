@@ -1,5 +1,4 @@
 import { createSignal, createMemo, onCleanup } from "solid-js";
-import type { LoopStateFile } from "../lib/loop-state";
 
 /**
  * Internal state for tracking iteration timing
@@ -20,7 +19,6 @@ export interface UseLoopStatsReturn {
   pause: () => void;
   resume: () => void;
   endIteration: () => number; // Returns active duration in ms
-  loadFromState: (state: LoopStateFile) => void;
   getHistory: () => number[];
 
   // Computed values (reactive)
@@ -169,18 +167,6 @@ export function useLoopStats(): UseLoopStatsReturn {
   }
 
   /**
-   * Load history from persisted state (for resume functionality)
-   */
-  function loadFromState(persistedState: LoopStateFile): void {
-    setState({
-      iterationStartTime: null,
-      pauseStartTime: null,
-      accumulatedPauseTime: 0,
-      history: persistedState.iterationHistory,
-    });
-  }
-
-  /**
    * Get the current history array
    */
   function getHistory(): number[] {
@@ -253,7 +239,6 @@ export function useLoopStats(): UseLoopStatsReturn {
     pause,
     resume,
     endIteration,
-    loadFromState,
     getHistory,
     elapsedTime,
     averageTime,

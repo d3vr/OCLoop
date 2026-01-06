@@ -200,17 +200,17 @@ export function DialogSelect(props: DialogSelectProps) {
       </box>
 
       {/* List */}
-      <scrollbox
-        ref={(r) => scroll = r}
-        maxHeight={6}
-        scrollbarOptions={{ visible: false }}
-        style={{ flexDirection: "column", flexGrow: 1 }}
-      >
-        <Show when={filteredOptions().length > 0} fallback={
-          <text>
-             <span style={{ fg: theme().textMuted }}>No results found</span>
-          </text>
-        }>
+      <Show when={filteredOptions().length > 0} fallback={
+        <text>
+           <span style={{ fg: theme().textMuted }}>No results found</span>
+        </text>
+      }>
+        <scrollbox
+          ref={(r) => scroll = r}
+          maxHeight={6}
+          scrollbarOptions={{ visible: false }}
+          style={{ flexDirection: "column", flexGrow: 1 }}
+        >
           <For each={filteredOptions()}>
             {(option, i) => {
               const isSelected = () => i() === selectedIndex()
@@ -257,8 +257,8 @@ export function DialogSelect(props: DialogSelectProps) {
               )
             }}
           </For>
-        </Show>
-      </scrollbox>
+        </scrollbox>
+      </Show>
 
       {/* Footer / Keybinds */}
       <box style={{ width: "100%", marginTop: 1, gap: 2, flexDirection: "row" }}>

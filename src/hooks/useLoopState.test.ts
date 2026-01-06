@@ -245,7 +245,7 @@ describe("loopReducer", () => {
       }
       const action: LoopAction = {
         type: "plan_complete",
-        summary: { manualTasks: ["Manual task 1"], blockedTasks: [] },
+        summary: { summary: "Work done" },
       }
 
       const result = loopReducer(state, action)
@@ -253,8 +253,7 @@ describe("loopReducer", () => {
       expect(result.type).toBe("complete")
       if (result.type === "complete") {
         expect(result.iterations).toBe(10)
-        expect(result.summary.manualTasks).toEqual(["Manual task 1"])
-        expect(result.summary.blockedTasks).toEqual([])
+        expect(result.summary.summary).toBe("Work done")
       }
     })
 
@@ -265,7 +264,7 @@ describe("loopReducer", () => {
       }
       const action: LoopAction = {
         type: "plan_complete",
-        summary: { manualTasks: [], blockedTasks: ["[BLOCKED: reason] Task"] },
+        summary: { summary: "Blocked tasks" },
       }
 
       const result = loopReducer(state, action)
@@ -273,8 +272,7 @@ describe("loopReducer", () => {
       expect(result.type).toBe("complete")
       if (result.type === "complete") {
         expect(result.iterations).toBe(7)
-        expect(result.summary.manualTasks).toEqual([])
-        expect(result.summary.blockedTasks).toEqual(["[BLOCKED: reason] Task"])
+        expect(result.summary.summary).toBe("Blocked tasks")
       }
     })
 
@@ -282,7 +280,7 @@ describe("loopReducer", () => {
       const state: LoopState = { type: "ready" }
       const action: LoopAction = {
         type: "plan_complete",
-        summary: { manualTasks: [], blockedTasks: [] },
+        summary: { summary: "Nothing done" },
       }
 
       const result = loopReducer(state, action)
@@ -290,31 +288,7 @@ describe("loopReducer", () => {
       expect(result.type).toBe("complete")
       if (result.type === "complete") {
         expect(result.iterations).toBe(0)
-        expect(result.summary).toEqual({ manualTasks: [], blockedTasks: [] })
-      }
-    })
-
-    it("should include rawContent in summary when present", () => {
-      const state: LoopState = {
-        type: "running",
-        iteration: 5,
-        sessionId: "session",
-      }
-      const summary = {
-        manualTasks: [],
-        blockedTasks: [],
-        rawContent: "Raw content data",
-      }
-      const action: LoopAction = {
-        type: "plan_complete",
-        summary,
-      }
-
-      const result = loopReducer(state, action)
-
-      expect(result.type).toBe("complete")
-      if (result.type === "complete") {
-        expect(result.summary.rawContent).toBe("Raw content data")
+        expect(result.summary.summary).toBe("Nothing done")
       }
     })
   })
@@ -541,12 +515,12 @@ describe("loopReducer", () => {
       // Plan is complete
       state = loopReducer(state, {
         type: "plan_complete",
-        summary: { manualTasks: [], blockedTasks: [] },
+        summary: { summary: "Done" },
       })
       expect(state.type).toBe("complete")
       if (state.type === "complete") {
         expect(state.iterations).toBe(3)
-        expect(state.summary).toEqual({ manualTasks: [], blockedTasks: [] })
+        expect(state.summary.summary).toBe("Done")
       }
     })
   })

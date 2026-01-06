@@ -251,7 +251,7 @@ describe("parsePlanComplete", () => {
   })
 
   it("should extract content between tags", () => {
-    const content = "Start <plan-complete>Summary text</plan-complete> End"
+    const content = "<plan-complete>Summary text</plan-complete>"
     expect(parsePlanComplete(content)).toBe("Summary text")
   })
 

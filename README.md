@@ -81,6 +81,7 @@ Usage: ocloop [options]
 Options:
   -p, --port <number>      Server port (default: 4096, falls back to random)
   -m, --model <string>     Model to use (passed to opencode)
+  -a, --agent <string>     Agent to use (default: build)
   -r, --run                Start iterations immediately (skip the ready screen)
   -d, --debug              Debug/sandbox mode (no plan file required)
   --verbose                Enable verbose logging to .loop.log
@@ -93,6 +94,7 @@ Examples:
   ocloop                           # Start with defaults
   ocloop -r                        # Start immediately without waiting
   ocloop -m claude-sonnet-4        # Use specific model
+  ocloop -a plan                   # Use the plan agent
   ocloop --plan my-plan.md         # Use custom plan file
   ocloop -d                        # Debug mode for experimentation
 ```

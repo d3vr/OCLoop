@@ -6,11 +6,24 @@ import { DEFAULTS } from "./lib/constants"
 import type { CLIArgs } from "./types"
 import { log } from "./lib/debug-logger"
 
+// Read version from package.json at build time
+const VERSION = require("../package.json").version
+
+/**
+ * Display version and exit
+ */
+function showVersion(): void {
+  console.log(`ocloop ${VERSION}`)
+  process.exit(0)
+}
+
 /**
  * Display help message and exit
  */
 function showHelp(): void {
   console.log(`
+ocloop ${VERSION}
+
 Usage: ocloop [options]
 
 OCLoop is a loop harness that orchestrates opencode to execute tasks from a
@@ -22,9 +35,10 @@ Options:
   -m, --model <string>     Model to use (passed to opencode)
   -r, --run                Start iterations immediately (default: wait for [S])
   -d, --debug              Debug/sandbox mode (no plan file validation, manual sessions)
-  -v, --verbose            Enable verbose logging (keyboard events, etc.)
+  --verbose                Enable verbose logging (keyboard events, etc.)
   --prompt <path>          Path to loop prompt file (default: ${DEFAULTS.PROMPT_FILE})
   --plan <path>            Path to plan file (default: ${DEFAULTS.PLAN_FILE})
+  -v, --version            Show version number
   -h, --help               Show help
 
 Examples:
@@ -52,6 +66,11 @@ function parseArgs(argv: string[]): CLIArgs {
       case "-h":
       case "--help":
         showHelp()
+        break
+
+      case "-v":
+      case "--version":
+        showVersion()
         break
 
       case "-p":
@@ -102,7 +121,6 @@ function parseArgs(argv: string[]): CLIArgs {
         args.debug = true
         break
 
-      case "-v":
       case "--verbose":
         args.verbose = true
         break

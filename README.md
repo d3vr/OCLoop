@@ -83,9 +83,10 @@ Options:
   -m, --model <string>     Model to use (passed to opencode)
   -r, --run                Start iterations immediately (skip the ready screen)
   -d, --debug              Debug/sandbox mode (no plan file required)
-  -v, --verbose            Enable verbose logging to .loop.log
+  --verbose                Enable verbose logging to .loop.log
   --prompt <path>          Path to loop prompt file (default: .loop-prompt.md)
   --plan <path>            Path to plan file (default: PLAN.md)
+  -v, --version            Show version number
   -h, --help               Show help
 
 Examples:

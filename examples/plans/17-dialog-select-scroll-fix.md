@@ -36,7 +36,7 @@ The `DialogSelect` component has a scrolling bug where navigating with arrow key
   - Add `id={option.value}` to each option's outer `<box>`
   - Remove viewport offset calculation from option index (`const index = () => viewportStart() + i()` becomes just `i()`)
 
-- [ ] **[MANUAL] Test DialogSelect scroll behavior**
+- [x] **[MANUAL] Test DialogSelect scroll behavior**
   - Run `bun run build && bun run dev`
   - Open terminal config dialog (should have 5+ options to test scrolling)
   - Verify: pressing down arrow scrolls items into view when reaching bottom

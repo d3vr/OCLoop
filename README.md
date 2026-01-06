@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/52489f17-a18b-4631-a954-0dc63bf96299" width="300" />
+  <img src="https://cdn.jsdelivr.net/gh/d3vr/ocloop@main/assets/logo.jpg" width="300" />
 </p>
 <p align="center">
   <i>Round and round we go</i>
@@ -27,6 +27,18 @@ OCLoop is a loop harness that orchestrates [OpenCode](https://opencode.ai) to ex
 
 ## Installation
 
+### From npm
+
+```bash
+# Install globally
+bun add -g ocloop
+
+# Or run directly without installing
+bunx ocloop
+```
+
+### From Source
+
 ```bash
 # Clone the repository
 git clone https://github.com/d3vr/ocloop.git
@@ -37,16 +49,9 @@ bun install
 
 # Build the project
 bun run build
-```
 
-### Global Installation
-
-```bash
-# After building, link globally
+# Link globally
 bun link
-
-# Now you can run from anywhere
-ocloop
 ```
 
 ## Quick Start

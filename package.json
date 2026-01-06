@@ -3,8 +3,24 @@
   "version": "0.1.0",
   "type": "module",
   "description": "A loop harness for opencode to execute tasks from PLAN.md",
-  "author": "OpenCode AI",
+  "author": "d3vr",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d3vr/ocloop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/d3vr/ocloop/issues"
+  },
+  "homepage": "https://github.com/d3vr/ocloop#readme",
+  "keywords": [
+    "opencode",
+    "cli",
+    "tui",
+    "automation",
+    "loop",
+    "task-runner"
+  ],
   "bin": {
     "ocloop": "./dist/index.js"
   },
@@ -22,7 +38,6 @@
     "@opentui/core": "latest",
     "@opentui/solid": "latest",
     "fuzzysort": "^3.1.0",
-    "remeda": "^2.33.1",
     "solid-js": "^1.8.0"
   },
   "devDependencies": {

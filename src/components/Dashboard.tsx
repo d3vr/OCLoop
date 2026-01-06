@@ -156,6 +156,7 @@ export function Dashboard(props: DashboardProps) {
         // Detached in debug mode
         if (state.sessionId) {
           return [
+            { key: "P", desc: "prompt" },
             { key: "T", desc: "terminal" },
             { key: "N", desc: "new session" },
             { key: "I", desc: "sample activity" },

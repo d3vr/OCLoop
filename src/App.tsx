@@ -40,6 +40,7 @@ import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
 import { CommandProvider, useCommand, type CommandOption } from "./context/CommandContext"
 import { ToastProvider, Toast, useToast } from "./context/ToastContext"
 import { DialogConfirm } from "./ui/DialogConfirm"
+import { DialogPrompt } from "./ui/DialogPrompt"
 import {
   Dashboard,
   DialogCompletion,
@@ -489,6 +490,34 @@ function AppContent(props: AppProps) {
         message: `Failed to create debug session: ${errorMessage}`,
         recoverable: true,
       })
+    }
+  }
+
+  /**
+   * Send a prompt in debug mode
+   */
+  async function sendDebugPrompt(text: string): Promise<void> {
+    const url = server.url()
+    const sid = sessionId() || lastSessionId()
+
+    if (!url || !sid) {
+      toast.show({ variant: "error", message: "No active session to send prompt" })
+      return
+    }
+
+    try {
+      // Add activity log immediately for feedback
+      activityLog.addEvent("user_message", `User: ${text}`)
+
+      const client = createOpencodeClient({ baseUrl: url })
+      await client.session.promptAsync({
+        sessionID: sid,
+        parts: [{ type: "text", text }],
+        agent: activeAgent(),
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      toast.show({ variant: "error", message: `Failed to send prompt: ${errorMessage}` })
     }
   }
 
@@ -946,6 +975,30 @@ function AppContent(props: AppProps) {
         // I - insert sample activity for UI testing
         insertSampleActivity()
         toast.show({ variant: "info", message: "Sample activity inserted" })
+        key.preventDefault()
+        return
+      }
+
+      if (key.name === "p") {
+        // P - prompt dialog
+        const sid = sessionId() || lastSessionId()
+        if (!sid) {
+          toast.show({ variant: "info", message: "No active session to send prompt" })
+          key.preventDefault()
+          return
+        }
+
+        dialog.show(() => (
+          <DialogPrompt
+            onSubmit={(text) => {
+              if (text.trim()) {
+                sendDebugPrompt(text.trim())
+              }
+              dialog.clear()
+            }}
+            onCancel={() => dialog.clear()}
+          />
+        ))
         key.preventDefault()
         return
       }

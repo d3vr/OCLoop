@@ -75,15 +75,10 @@ export function DialogSelect(props: DialogSelectProps) {
 
     const child = scroll.getChildren().find((c: any) => c.id === selectedOption.value)
     
-    // Debug logging
-    console.log(`moveTo: index=${index}, value=${selectedOption.value}, childFound=${!!child}, children=${scroll.getChildren().length}`)
-    
     if (child) {
       const relativeY = child.y - scroll.y
       const height = scroll.height
       
-      console.log(`  relativeY=${relativeY}, height=${height}`)
-
       if (relativeY < 0) {
         scroll.scrollBy({ x: 0, y: relativeY })
       } else if (relativeY >= height) {

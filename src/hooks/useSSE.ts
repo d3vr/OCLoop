@@ -311,8 +311,8 @@ export function useSSE(options: UseSSEOptions): UseSSEReturn {
       case "message.part.updated": {
         const props = event.properties as any
         const part = props.part
-        const messageId = props.messageID
-        const eventSessionId = props.sessionID
+        const messageId = part?.messageID
+        const eventSessionId = part?.sessionID
 
         // Filter by session if a filter is set
         if (filterSessionId && eventSessionId && eventSessionId !== filterSessionId) {

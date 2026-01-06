@@ -105,6 +105,7 @@ export function ActivityLog(props: ActivityLogProps) {
       case "error":
         return theme().error;
       case "session_start":
+        return theme().primary;
       case "session_idle":
         return theme().textMuted;
       default:
@@ -175,30 +176,44 @@ export function ActivityLog(props: ActivityLogProps) {
         }}
       >
         <For each={displayEvents()}>
-          {(event) => {
+          {(event, index) => {
             const content =
               event.type === "tool_use" && event.detail
                 ? `${event.detail}: ${event.message}`
                 : event.message;
 
             return (
-              <text>
-                <span style={{ fg: theme().textMuted }}>
-                  {formatTime(event.timestamp)}
-                </span>
-                {"  "}
-                <span style={{ fg: getLabelColor(event.type) }}>
-                  {getEventLabel(event.type)}
-                </span>
-                <span
+              <>
+                <Show when={event.type === "session_start" && index() > 0}>
+                  <text> </text>
+                </Show>
+                <box
                   style={{
-                    fg: event.dimmed ? theme().textMuted : theme().text,
+                    backgroundColor:
+                      event.type === "session_start"
+                        ? theme().backgroundElement
+                        : undefined,
                   }}
                 >
-                  {" "}
-                  {truncateText(content, 40)}
-                </span>
-              </text>
+                  <text>
+                    <span style={{ fg: theme().textMuted }}>
+                      {formatTime(event.timestamp)}
+                    </span>
+                    {"  "}
+                    <span style={{ fg: getLabelColor(event.type) }}>
+                      {getEventLabel(event.type)}
+                    </span>
+                    <span
+                      style={{
+                        fg: event.dimmed ? theme().textMuted : theme().text,
+                      }}
+                    >
+                      {" "}
+                      {truncateText(content, 40)}
+                    </span>
+                  </text>
+                </box>
+              </>
             );
           }}
         </For>

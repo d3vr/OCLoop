@@ -1,3 +1,4 @@
+import path from "path"
 import {
   createSignal,
   createEffect,
@@ -272,7 +273,11 @@ function AppContent(props: AppProps) {
       onFileEdited: (file) => {
         activityLog.addEvent("file_edit", file)
         // Re-parse plan if PLAN.md was edited
-        if (file.endsWith(props.planFile || DEFAULTS.PLAN_FILE)) {
+        const planFile = props.planFile || DEFAULTS.PLAN_FILE
+        const absolutePlanPath = path.resolve(planFile)
+        const absoluteFilePath = path.resolve(file)
+        
+        if (absoluteFilePath === absolutePlanPath) {
           refreshPlan()
           // Also refresh current task as fallback for SSE todo updates
           refreshCurrentTask()
@@ -450,7 +455,9 @@ function AppContent(props: AppProps) {
         )
       }
 
-      const prompt = await promptFile.text()
+      const promptContent = await promptFile.text()
+      // Replace {{PLAN_FILE}} placeholder with actual plan file path
+      const prompt = promptContent.replaceAll("{{PLAN_FILE}}", props.planFile || DEFAULTS.PLAN_FILE)
 
       // Send the prompt asynchronously
       await client.session.promptAsync({

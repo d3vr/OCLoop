@@ -2,12 +2,12 @@
 description: Execute loop
 ---
 
-Execute the next task from PLAN.md.
+Execute the next task from {{PLAN_FILE}}.
 
 Before starting:
 1. Check `git status` for uncommitted changes - a previous iteration may have been interrupted
    - If changes exist, assess whether they complete a task (commit and mark done) or need to be continued
-2. Read PLAN.md fully
+2. Read {{PLAN_FILE}} fully
 3. Before web searching or consulting reference repos, check if AGENTS.md ## Research has relevant @ references and load them with Read tool
 
 Task selection (CRITICAL):
@@ -22,7 +22,7 @@ Execute:
 3. Commit with a descriptive message. NEVER push.
 
 After completion:
-1. Update PLAN.md marking completed items with [x]
+1. Update {{PLAN_FILE}} marking completed items with [x]
 
 2. If you discovered external knowledge (API behavior, library quirks, external repo details):
    - Create docs/ directory if missing
@@ -48,7 +48,7 @@ After completion:
      ```
 
 4. If you cannot complete a task (permissions, external service, needs human input):
-   - Add [BLOCKED: reason] to that task line in PLAN.md
+   - Add [BLOCKED: reason] to that task line in {{PLAN_FILE}}
    - Continue with other tasks
 
 Completion check:

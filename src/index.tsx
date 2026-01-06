@@ -131,8 +131,8 @@ async function validatePrerequisites(args: CLIArgs): Promise<void> {
   if (!planExists) {
     console.error(`Error: Plan file not found: ${args.planFile}`)
     console.error("")
-    console.error("OCLoop requires a PLAN.md file with tasks to execute.")
-    console.error("Create a PLAN.md file with a task list, for example:")
+    console.error(`OCLoop requires a plan file (default: ${DEFAULTS.PLAN_FILE}).`)
+    console.error(`Create a ${args.planFile} file with a task list, for example:`)
     console.error("")
     console.error("  ## Backlog")
     console.error("  - [ ] Task one description")

@@ -1,14 +1,13 @@
-```
-█▀▀█ █▀▀▀ █    █▀▀█ █▀▀█ █▀▀█
-█░░█ █░░░ █    █░░█ █░░█ █▀▀▀
-▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀
-```
-
-*Round and round we go*
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/52489f17-a18b-4631-a954-0dc63bf96299" width="300" />
+</p>
+<p align="center">
+  <i>Round and round we go</i>
+</p>
 
 ---
 
-A loop harness that orchestrates [OpenCode](https://opencode.ai) to execute tasks from a PLAN.md file iteratively. Each iteration runs in an isolated session, with full visibility into what OpenCode is doing.
+OCLoop is a loop harness that orchestrates [OpenCode](https://opencode.ai) to execute tasks from a PLAN.md file iteratively. Each iteration runs in an isolated session, with full visibility into what OpenCode is doing.
 
 ## Features
 

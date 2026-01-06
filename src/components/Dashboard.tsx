@@ -157,6 +157,7 @@ export function Dashboard(props: DashboardProps) {
           return [
             { key: "T", desc: "terminal" },
             { key: "N", desc: "new session" },
+            { key: "I", desc: "sample activity" },
             { key: "^P", desc: "commands" },
             { key: "Q", desc: "quit" },
           ]
@@ -164,6 +165,7 @@ export function Dashboard(props: DashboardProps) {
         // No active session
         return [
           { key: "N", desc: "new session" },
+          { key: "I", desc: "sample activity" },
           { key: "^P", desc: "commands" },
           { key: "Q", desc: "quit" },
         ]

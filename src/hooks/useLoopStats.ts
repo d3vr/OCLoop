@@ -34,7 +34,7 @@ export interface UseLoopStatsReturn {
  * @returns Formatted string like "1m 23s", "45s", "2h 15m"
  */
 export function formatDuration(ms: number): string {
-  if (ms < 0) return "0s";
+  if (ms < 0) return "0s".padStart(7, " ");
 
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
@@ -42,12 +42,12 @@ export function formatDuration(ms: number): string {
   const seconds = totalSeconds % 60;
 
   if (hours > 0) {
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    return `${hours}h ${minutes}m`.padStart(7, " ");
   }
   if (minutes > 0) {
-    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    return `${minutes}m ${seconds}s`.padStart(7, " ");
   }
-  return `${seconds}s`;
+  return `${seconds}s`.padStart(7, " ");
 }
 
 /**

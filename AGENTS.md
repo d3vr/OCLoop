@@ -3,6 +3,7 @@
 
 Check these before web searching (load with Read tool as needed):
 - @docs/build-process.md - Details on Bun build and SolidJS integration
+- @docs/testing.md - Notes on testing limitations with TUI components
 
 ## Code Quality Guidelines
 

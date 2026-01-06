@@ -82,7 +82,7 @@ export function createTerminalConfigState(
 
 /**
  * Internal component for Custom Terminal form
- * Handles its own input via useInput
+ * Handles its own input via useKeyboard
  */
 function CustomTerminalForm(props: {
   state: TerminalConfigState

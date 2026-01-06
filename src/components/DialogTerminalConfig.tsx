@@ -1,5 +1,6 @@
-import { createSignal, createMemo, Show, type Accessor } from "solid-js"
-import { useInput } from "../hooks/useInput"
+import { createSignal, createMemo, Show, type Accessor, onMount } from "solid-js"
+import { useKeyboard } from "@opentui/solid"
+import type { InputRenderable } from "@opentui/core"
 import { Dialog } from "../ui/Dialog"
 import { DialogSelect, type DialogSelectOption } from "../ui/DialogSelect"
 import { useTheme } from "../context/ThemeContext"
@@ -89,39 +90,43 @@ function CustomTerminalForm(props: {
 }) {
   const { theme } = useTheme()
   const s = props.state
+  let commandInput: InputRenderable | undefined
+  let argsInput: InputRenderable | undefined
 
-  useInput((input, key) => {
+  onMount(() => {
+    setTimeout(() => {
+      if (s.activeInput() === "command") {
+        commandInput?.focus()
+      } else {
+        argsInput?.focus()
+      }
+    }, 10)
+  })
+
+  useKeyboard((key) => {
     // Tab - switch between inputs
     if (key.name === "tab") {
-      s.setActiveInput(s.activeInput() === "command" ? "args" : "command")
+      key.preventDefault()
+      if (s.activeInput() === "command") {
+        s.setActiveInput("args")
+        argsInput?.focus()
+      } else {
+        s.setActiveInput("command")
+        commandInput?.focus()
+      }
       return
     }
     // Enter - save
-    if (key.name === "return" || key.name === "enter") {
+    if (key.name === "return") {
+      key.preventDefault()
       s.onSaveCustom()
       return
     }
     // Escape - cancel (go back to list)
     if (key.name === "escape") {
+      key.preventDefault()
       props.onCancel()
       return
-    }
-    // Backspace
-    if (key.name === "backspace") {
-      if (s.activeInput() === "command") {
-        s.setCustomCommand(s.customCommand().slice(0, -1))
-      } else {
-        s.setCustomArgs(s.customArgs().slice(0, -1))
-      }
-      return
-    }
-    // Typed characters
-    if (input.length === 1 && input.charCodeAt(0) >= 32 && input.charCodeAt(0) < 127) {
-      if (s.activeInput() === "command") {
-        s.setCustomCommand(s.customCommand() + input)
-      } else {
-        s.setCustomArgs(s.customArgs() + input)
-      }
     }
   })
 
@@ -134,32 +139,36 @@ function CustomTerminalForm(props: {
         </text>
 
         {/* Command input */}
-        <text style={{ marginTop: 1 }}>
-          <span style={{ fg: theme().textMuted }}>Command: </span>
-          <span
-            style={{
-              fg: s.activeInput() === "command" ? theme().text : theme().textMuted,
-              bg: s.activeInput() === "command" ? theme().backgroundElement : undefined,
-            }}
-          >
-            {s.customCommand() || " "}
-            {s.activeInput() === "command" && <span style={{ fg: theme().primary }}>_</span>}
-          </span>
-        </text>
+        <box style={{ marginTop: 1 }}>
+          <text>
+            <span style={{ fg: theme().textMuted }}>Command: </span>
+          </text>
+          <input
+            ref={commandInput}
+            value={s.customCommand()}
+            onInput={(v) => s.setCustomCommand(v)}
+            focusedBackgroundColor={theme().backgroundElement}
+            cursorColor={theme().primary}
+            focusedTextColor={theme().text}
+            width={40}
+          />
+        </box>
 
         {/* Args input */}
-        <text style={{ marginTop: 1 }}>
-          <span style={{ fg: theme().textMuted }}>Args:    </span>
-          <span
-            style={{
-              fg: s.activeInput() === "args" ? theme().text : theme().textMuted,
-              bg: s.activeInput() === "args" ? theme().backgroundElement : undefined,
-            }}
-          >
-            {s.customArgs() || " "}
-            {s.activeInput() === "args" && <span style={{ fg: theme().primary }}>_</span>}
-          </span>
-        </text>
+        <box style={{ marginTop: 1 }}>
+          <text>
+            <span style={{ fg: theme().textMuted }}>Args:    </span>
+          </text>
+          <input
+            ref={argsInput}
+            value={s.customArgs()}
+            onInput={(v) => s.setCustomArgs(v)}
+            focusedBackgroundColor={theme().backgroundElement}
+            cursorColor={theme().primary}
+            focusedTextColor={theme().text}
+            width={40}
+          />
+        </box>
 
         {/* Help text */}
         <text style={{ marginTop: 1 }}>

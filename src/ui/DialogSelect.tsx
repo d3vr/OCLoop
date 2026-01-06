@@ -1,11 +1,11 @@
 import { createSignal, createEffect, onMount, For, Show } from "solid-js"
-import { useInput } from "../hooks/useInput"
+import { useKeyboard } from "@opentui/solid"
+import type { InputRenderable } from "@opentui/core"
 import fuzzysort from "fuzzysort"
 import { ScrollBoxRenderable } from "@opentui/core"
 import { Dialog } from "./Dialog"
 import { useTheme, selectedForeground } from "../context/ThemeContext"
 import { truncate } from "../lib/locale"
-import { KEYS } from "../lib/constants"
 
 export interface DialogSelectOption {
   title: string
@@ -43,6 +43,12 @@ export function DialogSelect(props: DialogSelectProps) {
   const [filteredOptions, setFilteredOptions] = createSignal<DialogSelectOption[]>([])
   const [selectedIndex, setSelectedIndex] = createSignal(0)
   let scroll: ScrollBoxRenderable | undefined
+
+  let input: InputRenderable | undefined
+
+  onMount(() => {
+    setTimeout(() => input?.focus(), 10)
+  })
 
   // Filter options when search changes
   createEffect(() => {
@@ -88,14 +94,16 @@ export function DialogSelect(props: DialogSelectProps) {
   }
 
   // Handle keyboard input
-  useInput((input, key) => {
+  useKeyboard((key) => {
     // Escape handled by Dialog backdrop/onClose
     if (key.name === "escape") {
+      key.preventDefault()
       props.onClose()
       return
     }
 
-    if (key.name === "return" || key.name === "enter") {
+    if (key.name === "return") {
+      key.preventDefault()
       const selected = filteredOptions()[selectedIndex()]
       if (selected && !selected.disabled) {
         if (selected.onSelect) selected.onSelect()
@@ -104,42 +112,47 @@ export function DialogSelect(props: DialogSelectProps) {
       return
     }
 
-    if (key.name === "up" || (input === KEYS.CTRL_P)) {
+    if (key.name === "up" || (key.ctrl && key.name === "p")) {
+      key.preventDefault()
       const newIndex = Math.max(0, selectedIndex() - 1)
       moveTo(newIndex)
+      return
     }
 
-    if (key.name === "down" || (input === KEYS.CTRL_N)) {
+    if (key.name === "down" || (key.ctrl && key.name === "n")) {
+      key.preventDefault()
       const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + 1)
       moveTo(newIndex)
+      return
     }
 
     if (key.name === "pageup") {
+      key.preventDefault()
       const newIndex = Math.max(0, selectedIndex() - 6)
       moveTo(newIndex)
+      return
     }
 
     if (key.name === "pagedown") {
+      key.preventDefault()
       const newIndex = Math.min(filteredOptions().length - 1, selectedIndex() + 6)
       moveTo(newIndex)
-    }
-
-    // Search input handling
-    if (!key.ctrl && !key.meta && input.length === 1 && key.name !== "backspace") {
-      setSearch(s => s + input)
-    }
-    if (key.name === "backspace") {
-      setSearch(s => s.slice(0, -1))
+      return
     }
 
     // Check custom keybinds
     if (props.keybinds) {
-      const isPrintable = input.length === 1 && !key.ctrl && !key.meta
-      if (key.ctrl || key.meta || !isPrintable) {
+      // Logic: Only check binds if it's NOT a regular typing character
+      // Regular typing: no modifiers, single char, printable range
+      const isTyping = !key.ctrl && !key.meta && key.sequence && key.sequence.length === 1 && 
+                       key.sequence.charCodeAt(0) >= 32 && key.sequence.charCodeAt(0) <= 126
+
+      if (!isTyping) {
         for (const kb of props.keybinds) {
           if (kb.onSelect && kb.bind) {
             const binds = Array.isArray(kb.bind) ? kb.bind : [kb.bind]
-            if (binds.some(b => b === input || b === key.name)) {
+            if (binds.some(b => b === key.sequence || b === key.name)) {
+              key.preventDefault()
               kb.onSelect()
               return
             }
@@ -170,17 +183,20 @@ export function DialogSelect(props: DialogSelectProps) {
       {/* Search Input */}
       <box style={{ 
         width: "100%", 
-        height: 3,
-        borderStyle: "rounded", 
-        borderColor: theme().border,
-        paddingLeft: 1,
+        paddingTop: 1, 
+        paddingBottom: 1,
         marginBottom: 1
       }}>
-        <text>
-          <span>{search() || props.placeholder || "Search..."}</span>
-          {/* Cursor */}
-          <span style={{ fg: theme().primary }}>_</span> 
-        </text>
+        <input
+          ref={input}
+          value={search()}
+          onInput={(v) => setSearch(v)}
+          placeholder={props.placeholder || "Search..."}
+          focusedBackgroundColor={theme().backgroundPanel}
+          cursorColor={theme().primary}
+          focusedTextColor={theme().textMuted}
+          width="100%"
+        />
       </box>
 
       {/* List */}

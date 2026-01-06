@@ -48,6 +48,7 @@ import {
   DialogTerminalConfig,
   createTerminalConfigState,
   DialogTerminalError,
+  DialogInvalidAgent,
 } from "./components"
 import type { CLIArgs, PlanProgress, LoopState } from "./types"
 
@@ -124,6 +125,9 @@ function AppContent(props: AppProps) {
 
   // Active model
   const [activeModel, setActiveModel] = createSignal<string | undefined>(props.model)
+  
+  // Active agent
+  const [activeAgent, setActiveAgent] = createSignal<string | undefined>(props.agent)
 
   // Track if we've initialized (to prevent double initialization)
   let sessionInitialized = false
@@ -409,6 +413,7 @@ function AppContent(props: AppProps) {
       await client.session.promptAsync({
         sessionID: newSessionId,
         parts: [{ type: "text", text: prompt }],
+        agent: activeAgent(),
       })
 
       // Refresh plan progress
@@ -571,6 +576,33 @@ function AppContent(props: AppProps) {
             })
             .catch(err => {
               log.error("config", "Failed to fetch model from config", err)
+            })
+        }
+      }
+
+      // Validate agent if specified
+      if (props.agent) {
+        const url = server.url()
+        if (url) {
+          createOpencodeClient({ baseUrl: url }).app.agents()
+            .then(res => {
+              const primaryAgents = res.data?.filter((a: any) => a.mode === "primary").map((a: any) => a.name) || []
+              if (!primaryAgents.includes(props.agent!)) {
+                dialog.show(() => (
+                  <DialogInvalidAgent
+                    agentName={props.agent!}
+                    availableAgents={primaryAgents}
+                    onUseDefault={() => {
+                      setActiveAgent(undefined)
+                      dialog.clear()
+                    }}
+                    onQuit={() => handleQuit(1)}
+                  />
+                ))
+              }
+            })
+            .catch(err => {
+              log.error("agent", "Failed to validate agent", err)
             })
         }
       }
@@ -1039,6 +1071,7 @@ function AppContent(props: AppProps) {
         stats={stats}
         currentTask={currentTask() ?? null}
         model={activeModel()}
+        agent={activeAgent()}
       />
 
       {/* Activity Log takes remaining space */}

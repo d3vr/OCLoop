@@ -39,9 +39,9 @@ import { ThemeProvider } from "./context/ThemeContext"
 import { DialogProvider, DialogStack, useDialog } from "./context/DialogContext"
 import { CommandProvider, useCommand, type CommandOption } from "./context/CommandContext"
 import { ToastProvider, Toast, useToast } from "./context/ToastContext"
+import { DialogConfirm } from "./ui/DialogConfirm"
 import {
   Dashboard,
-  QuitConfirmation,
   DialogCompletion,
   DialogError,
   ActivityLog,
@@ -119,8 +119,6 @@ function AppContent(props: AppProps) {
 
   // Configuration & Terminal State
   const [ocloopConfig, setOcloopConfig] = createSignal<OcloopConfig>({})
-  const [showingTerminalConfig, setShowingTerminalConfig] = createSignal(false)
-  const [terminalError, setTerminalError] = createSignal<{ name: string; error: string } | null>(null)
   const [availableTerminals, setAvailableTerminals] = createSignal<KnownTerminal[]>([])
   const [lastSessionId, setLastSessionId] = createSignal<string | undefined>(undefined)
 
@@ -473,6 +471,25 @@ function AppContent(props: AppProps) {
   }
 
   /**
+   * Show quit confirmation dialog
+   */
+  const showQuitConfirmation = () => {
+    dialog.show(() => (
+      <DialogConfirm
+        title="Quit OCLoop?"
+        message="Are you sure you want to quit?"
+        confirmLabel="Quit"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          dialog.clear()
+          handleQuit()
+        }}
+        onCancel={() => dialog.clear()}
+      />
+    ))
+  }
+
+  /**
    * Handle quit - abort session and cleanup gracefully
    * @param exitCode - Exit code to use (default: 0)
    */
@@ -645,6 +662,23 @@ function AppContent(props: AppProps) {
     }
   })
   
+  /**
+   * Helper to show terminal error dialog
+   */
+  const showTerminalError = (name: string, error: string) => {
+    const attachCmd = (sessionId() || lastSessionId()) && server.url() 
+      ? getAttachCommand(server.url()!, (sessionId() || lastSessionId())!) 
+      : ""
+    dialog.show(() => (
+      <DialogTerminalError
+        terminalName={name}
+        errorMessage={error}
+        attachCommand={attachCmd}
+        onCopy={onErrorCopy}
+        onClose={() => dialog.clear()}
+      />
+    ))
+  }
 
   /**
    * Execute launch and handle errors
@@ -667,10 +701,10 @@ function AppContent(props: AppProps) {
      log.info("terminal", "Launch result", result)
 
      if (!result.success) {
-        setTerminalError({
-           name: terminalConfig.type === 'known' ? terminalConfig.name : 'Custom',
-           error: result.error || "Unknown error"
-        })
+        showTerminalError(
+           terminalConfig.type === 'known' ? terminalConfig.name : 'Custom',
+           result.error || "Unknown error"
+        )
      }
   }
   
@@ -687,7 +721,7 @@ function AppContent(props: AppProps) {
      
      await saveConfig(newConfig)
      setOcloopConfig(newConfig)
-     setShowingTerminalConfig(false)
+     dialog.clear()
      
      // Launch!
      const sid = sessionId() || lastSessionId()
@@ -709,7 +743,7 @@ function AppContent(props: AppProps) {
      
      await saveConfig(newConfig)
      setOcloopConfig(newConfig)
-     setShowingTerminalConfig(false)
+     dialog.clear()
      
      // Launch!
      const sid = sessionId() || lastSessionId()
@@ -726,7 +760,7 @@ function AppContent(props: AppProps) {
         copyToClipboard(cmd)
         toast.show({ variant: "success", message: "Copied to clipboard" })
      }
-     setShowingTerminalConfig(false)
+     dialog.clear()
   }
   
   const onErrorCopy = () => {
@@ -737,7 +771,6 @@ function AppContent(props: AppProps) {
         copyToClipboard(cmd)
         toast.show({ variant: "success", message: "Copied to clipboard" })
      }
-     setTerminalError(null)
   }
 
   // Create state for terminal config dialog
@@ -746,7 +779,7 @@ function AppContent(props: AppProps) {
     onConfigSelect,
     onConfigCustom,
     onConfigCopy,
-    () => setShowingTerminalConfig(false)
+    () => dialog.clear()
   )
 
   // Register commands
@@ -780,7 +813,12 @@ function AppContent(props: AppProps) {
         disabled: !hasSession,
         onSelect: () => {
           dialog.clear()
-          setShowingTerminalConfig(true)
+          dialog.show(() => (
+            <DialogTerminalConfig
+              state={terminalConfigState}
+              onCancel={() => dialog.clear()}
+            />
+          ))
         },
       },
       {
@@ -825,6 +863,11 @@ function AppContent(props: AppProps) {
       })
     }
 
+    // If a dialog is open, let the dialog handle all input
+    if (dialog.hasDialogs()) {
+      return
+    }
+
     // Ctrl+P - open command palette
     if (key.ctrl && key.name === "p") {
       command.show()
@@ -844,7 +887,7 @@ function AppContent(props: AppProps) {
       
       if (key.name === "q") {
         // Q - show quit confirmation
-        loop.showQuitConfirmation()
+        showQuitConfirmation()
         key.preventDefault()
         return
       }
@@ -856,7 +899,12 @@ function AppContent(props: AppProps) {
             if (hasTerminalConfig(config)) {
                launchConfiguredTerminal(sid, config.terminal)
             } else {
-               command.trigger("terminal_config")
+               dialog.show(() => (
+                  <DialogTerminalConfig
+                     state={terminalConfigState}
+                     onCancel={() => dialog.clear()}
+                  />
+               ))
             }
          } else {
             toast.show({ variant: "info", message: "No active session to attach to" })
@@ -879,7 +927,7 @@ function AppContent(props: AppProps) {
         return
       }
       if (key.name === "q") {
-        loop.showQuitConfirmation()
+        showQuitConfirmation()
         key.preventDefault()
         return
       }
@@ -905,7 +953,12 @@ function AppContent(props: AppProps) {
           if (hasTerminalConfig(config)) {
              launchConfiguredTerminal(sid, config.terminal)
           } else {
-             command.trigger("terminal_config")
+             dialog.show(() => (
+                <DialogTerminalConfig
+                   state={terminalConfigState}
+                   onCancel={() => dialog.clear()}
+                />
+             ))
           }
        } else {
           toast.show({ variant: "info", message: "No active session to attach to" })
@@ -924,7 +977,7 @@ function AppContent(props: AppProps) {
 
     if (key.name === "q") {
       if (loop.canQuit()) {
-        loop.showQuitConfirmation()
+        showQuitConfirmation()
       }
       key.preventDefault()
       return
@@ -971,29 +1024,7 @@ function AppContent(props: AppProps) {
       />
 
       {/* Overlays */}
-      <Show when={showingTerminalConfig()}>
-         <DialogTerminalConfig
-            state={terminalConfigState}
-            onCancel={() => setShowingTerminalConfig(false)}
-         />
-      </Show>
 
-      <Show when={terminalError()}>
-         <DialogTerminalError
-            terminalName={terminalError()?.name || "Terminal"}
-            errorMessage={terminalError()?.error || "Unknown error"}
-            attachCommand={(sessionId() || lastSessionId()) && server.url() ? getAttachCommand(server.url()!, (sessionId() || lastSessionId())!) : ""}
-            onCopy={onErrorCopy}
-            onClose={() => setTerminalError(null)}
-         />
-      </Show>
-
-      {/* Quit confirmation modal (overlay) */}
-      <QuitConfirmation
-        visible={loop.showingQuitConfirmation()}
-        onConfirm={handleQuit}
-        onCancel={() => loop.hideQuitConfirmation()}
-      />
     </box>
   )
 }

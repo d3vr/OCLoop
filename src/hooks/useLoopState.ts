@@ -20,11 +20,6 @@ export interface UseLoopStateReturn {
   canQuit: () => boolean
   canRetry: () => boolean
   iteration: () => number
-
-  // Quit confirmation modal
-  showingQuitConfirmation: () => boolean
-  showQuitConfirmation: () => void
-  hideQuitConfirmation: () => void
 }
 
 /**
@@ -214,8 +209,6 @@ export function loopReducer(state: LoopState, action: LoopAction): LoopState {
  */
 export function useLoopState(): UseLoopStateReturn {
   const [state, setState] = createSignal<LoopState>({ type: "starting" })
-  const [showingQuitConfirmation, setShowingQuitConfirmation] =
-    createSignal(false)
 
   /**
    * Dispatch an action to the state machine
@@ -292,22 +285,6 @@ export function useLoopState(): UseLoopStateReturn {
     return 0
   })
 
-  /**
-   * Show the quit confirmation modal
-   */
-  function showQuitConfirmation(): void {
-    if (canQuit()) {
-      setShowingQuitConfirmation(true)
-    }
-  }
-
-  /**
-   * Hide the quit confirmation modal
-   */
-  function hideQuitConfirmation(): void {
-    setShowingQuitConfirmation(false)
-  }
-
   return {
     state,
     dispatch,
@@ -322,8 +299,5 @@ export function useLoopState(): UseLoopStateReturn {
     canQuit,
     canRetry,
     iteration,
-    showingQuitConfirmation,
-    showQuitConfirmation,
-    hideQuitConfirmation,
   }
 }

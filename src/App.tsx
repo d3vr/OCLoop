@@ -19,17 +19,12 @@ import { useLoopStats } from "./hooks/useLoopStats"
 import { useSessionStats } from "./hooks/useSessionStats"
 import { useActivityLog } from "./hooks/useActivityLog"
 import { log } from "./lib/debug-logger"
-import { parsePlanFile, parseCompletionFile, parseRemainingTasksFile, getCurrentTask } from "./lib/plan-parser"
+import { parsePlanFile, getCurrentTask, isPlanComplete, getPlanCompleteSummary } from "./lib/plan-parser"
 import { KEYS, DEFAULTS, isKeyboardInput } from "./lib/constants"
 import { getToolPreview } from "./lib/format"
 import { shutdownManager } from "./lib/shutdown"
 import {
-  loadLoopState,
-  saveLoopState,
-  deleteLoopState,
   ensureGitignore,
-  createLoopState,
-  type LoopStateFile,
 } from "./lib/loop-state"
 import { loadConfig, saveConfig, hasTerminalConfig, type OcloopConfig } from "./lib/config"
 import { 
@@ -46,7 +41,6 @@ import { ToastProvider, Toast, useToast } from "./context/ToastContext"
 import {
   Dashboard,
   QuitConfirmation,
-  DialogResume,
   DialogCompletion,
   DialogError,
   ActivityLog,
@@ -129,10 +123,6 @@ function AppContent(props: AppProps) {
   const [availableTerminals, setAvailableTerminals] = createSignal<KnownTerminal[]>([])
   const [lastSessionId, setLastSessionId] = createSignal<string | undefined>(undefined)
 
-  // Persisted loop state (loaded on startup)
-  const [persistedState, setPersistedState] = createSignal<LoopStateFile | null>(null)
-  const [showingResumeDialog, setShowingResumeDialog] = createSignal(false)
-
   // Active model
   const [activeModel, setActiveModel] = createSignal<string | undefined>(props.model)
 
@@ -188,11 +178,6 @@ function AppContent(props: AppProps) {
       log.iterationEnd(state.iteration)
       log.debug("state", "Iteration ended", { iteration: state.iteration })
       stats.endIteration()
-      
-      // Save state after iteration completes
-      const iterationCount = state.type === "running" ? state.iteration : 
-        state.type === "paused" ? state.iteration : 0
-      persistLoopState(iterationCount)
     }
   })
 
@@ -354,42 +339,15 @@ function AppContent(props: AppProps) {
   }
 
   /**
-   * Save loop state to disk after each iteration
-   * Creates new state if none exists, otherwise updates existing
-   */
-  async function persistLoopState(iteration: number): Promise<void> {
-    try {
-      const existing = persistedState()
-      const history = stats.getHistory()
-      
-      if (existing) {
-        // Update existing state
-        await saveLoopState({
-          ...existing,
-          iteration,
-          iterationHistory: history,
-        })
-      } else {
-        // Create new state
-        const newState = createLoopState()
-        newState.iteration = iteration
-        newState.iterationHistory = history
-        await saveLoopState(newState)
-        setPersistedState(newState)
-      }
-    } catch (err) {
-      // Log error but don't interrupt the loop
-      console.error("Failed to save loop state:", err)
-    }
-  }
-
-  /**
-   * Check if .loop-complete file exists
+   * Check if plan is marked complete
    */
   async function checkPlanComplete(): Promise<boolean> {
+    // Skip check in debug mode
+    if (props.debug) return false
+    
     try {
-      const file = Bun.file(DEFAULTS.COMPLETE_FILE)
-      return await file.exists()
+      const planPath = props.planFile || DEFAULTS.PLAN_FILE
+      return await isPlanComplete(planPath)
     } catch {
       return false
     }
@@ -407,25 +365,14 @@ function AppContent(props: AppProps) {
 
     // Check for plan completion first
     if (await checkPlanComplete()) {
-      // Parse remaining tasks from the plan file and .loop-complete file
       const planPath = props.planFile || DEFAULTS.PLAN_FILE
-      let summary = await parseRemainingTasksFile(planPath)
+      // We know it's complete, but getPlanCompleteSummary returns string | null
+      const summaryContent = await getPlanCompleteSummary(planPath)
       
-      // Also check .loop-complete for any additional info
-      const completeSummary = await parseCompletionFile(DEFAULTS.COMPLETE_FILE)
-      
-      // Merge summaries (prefer the plan file data, but add any unique items from .loop-complete)
-      summary = {
-        manualTasks: [...new Set([...summary.manualTasks, ...completeSummary.manualTasks])],
-        blockedTasks: [...new Set([...summary.blockedTasks, ...completeSummary.blockedTasks])],
-        rawContent: completeSummary.rawContent
-      }
-      
-      // Delete persisted loop state on completion
-      await deleteLoopState()
-      setPersistedState(null)
-      
-      loop.dispatch({ type: "plan_complete", summary })
+      loop.dispatch({ 
+        type: "plan_complete", 
+        summary: { summary: summaryContent || "Plan marked as complete." } 
+      })
       return
     }
 
@@ -530,11 +477,6 @@ function AppContent(props: AppProps) {
    */
   async function handleQuit(exitCode: number = 0): Promise<void> {
     log.info("app", "Quit initiated", { exitCode, currentSessionId: sessionId() })
-    // Save state before quitting so user can resume
-    const iteration = loop.iteration()
-    if (iteration > 0) {
-      await persistLoopState(iteration)
-    }
     
     loop.dispatch({ type: "quit" })
 
@@ -609,9 +551,8 @@ function AppContent(props: AppProps) {
   /**
    * Initialize session persistence on startup
    * - In debug mode: creates a debug session immediately
-   * - In normal mode: ensures .loop-state.json is in .gitignore
-   * - Loads any existing persisted state
-   * - Shows resume dialog if previous state exists
+   * - In normal mode: ensures .gitignore is updated
+   * - Starts immediately if --run is passed
    */
   async function initializeSession(): Promise<void> {
     // In debug mode, create a session immediately and return
@@ -621,31 +562,17 @@ function AppContent(props: AppProps) {
     }
 
     try {
-      // Ensure .loop-state.json is in .gitignore
+      // Ensure .loop* is in .gitignore
       await ensureGitignore()
 
-      // Load any persisted state from previous run
-      const loadedState = await loadLoopState()
-
-      if (loadedState) {
-        // Previous state found - show resume dialog
-        setPersistedState(loadedState)
-        setShowingResumeDialog(true)
-        dialog.show(() => (
-          <DialogResume
-            iteration={loadedState.iteration}
-            onResume={handleResume}
-            onStartFresh={handleStartFresh}
-          />
-        ))
-      } else if (props.run) {
-        // No previous state and --run flag set, start immediately
+      if (props.run) {
+        // --run flag set, start immediately
         loop.dispatch({ type: "start" })
         startIteration()
       }
     } catch (err) {
       // Log error but don't block startup
-      console.error("Failed to initialize session persistence:", err)
+      console.error("Failed to initialize session:", err)
       
       // If --run flag is set, start anyway
       if (props.run) {
@@ -653,47 +580,6 @@ function AppContent(props: AppProps) {
         startIteration()
       }
     }
-  }
-
-  /**
-   * Handle resume from previous session
-   * - Load history into stats
-   * - Set iteration count in state machine (via resuming with proper iteration)
-   */
-  function handleResume(): void {
-    const loaded = persistedState()
-    if (!loaded) return
-
-    // Load history into stats
-    stats.loadFromState(loaded)
-
-    // Clear the dialog
-    dialog.clear()
-    setShowingResumeDialog(false)
-
-    // Start running from the loaded iteration
-    // We dispatch start to transition to running state, then the iteration
-    // count will be maintained by iterating from the current position
-    loop.dispatch({ type: "start" })
-    
-    // Start the next iteration (iteration count will increment)
-    startIteration()
-  }
-
-  /**
-   * Handle start fresh - delete previous state and start new
-   */
-  async function handleStartFresh(): Promise<void> {
-    // Delete the old state file
-    await deleteLoopState()
-    setPersistedState(null)
-
-    // Clear the dialog
-    dialog.clear()
-    setShowingResumeDialog(false)
-
-    // If --run flag is set or user chose to start fresh, we can prompt to start
-    // The user will need to press S to start (consistent with normal startup)
   }
 
   // Server error effect - transition to error state
@@ -730,9 +616,7 @@ function AppContent(props: AppProps) {
         <DialogCompletion
           iterations={state.iterations}
           totalTime={totalTime}
-          manualTasks={state.summary.manualTasks}
-          blockedTasks={state.summary.blockedTasks}
-          rawContent={state.summary.rawContent}
+          summary={state.summary.summary}
           onClose={() => handleQuit()}
         />
       ))

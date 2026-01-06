@@ -14,7 +14,6 @@ OCLoop is a loop harness that orchestrates [OpenCode](https://opencode.ai) to ex
 - **Automated task execution** — Execute a plan one task at a time, each in a fresh context window
 - **Live dashboard** — Visual status with iteration timing, averages, ETA, and progress bar
 - **Activity log** — Real-time view of tool usage, file edits, token counts, and git diffs
-- **Session recovery** — Resume interrupted runs from where you left off
 - **Terminal integration** — Launch OpenCode in an external terminal to interact mid-iteration
 - **Command palette** — Quick access to actions via `Ctrl+P`
 - **Knowledge persistence** — Learnings documented in AGENTS.md and docs/ across iterations
@@ -132,13 +131,13 @@ Using bold task IDs helps with organization:
 2. Creates a new session for each iteration
 3. Sends your loop prompt to the session
 4. Waits for the session to become idle (task complete)
-5. Checks for `.loop-complete` file
+5. Checks for `<plan-complete>` tag in plan file
 6. If not complete, starts the next iteration
 
 ### Completion
 
 The loop ends when:
-- OpenCode creates a `.loop-complete` file (all automatable tasks done)
+- Model appends `<plan-complete>summary</plan-complete>` to the plan file (all automatable tasks done)
 - You quit manually with `Q`
 - An unrecoverable error occurs
 
@@ -148,8 +147,6 @@ The loop ends when:
 | ------------------- | ------------------------------------------------ |
 | `PLAN.md`           | Task list to execute                             |
 | `.loop-prompt.md`   | Prompt sent to OpenCode each iteration           |
-| `.loop-complete`    | Created when all automatable tasks are complete  |
-| `.loop-state.json`  | Auto-saved state for resuming interrupted runs   |
 | `AGENTS.md`         | Persistent knowledge for OpenCode across sessions|
 | `.loop.log`         | Debug log (when running with `-v`)               |
 

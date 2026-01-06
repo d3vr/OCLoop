@@ -9,6 +9,7 @@ import {
 } from "solid-js"
 import {
   useRenderer,
+  useKeyboard,
 } from "@opentui/solid"
 import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 
@@ -20,7 +21,7 @@ import { useSessionStats } from "./hooks/useSessionStats"
 import { useActivityLog } from "./hooks/useActivityLog"
 import { log } from "./lib/debug-logger"
 import { parsePlanFile, getCurrentTask, isPlanComplete, getPlanCompleteSummary } from "./lib/plan-parser"
-import { KEYS, DEFAULTS, isKeyboardInput } from "./lib/constants"
+import { DEFAULTS } from "./lib/constants"
 import { getToolPreview } from "./lib/format"
 import { shutdownManager } from "./lib/shutdown"
 import {
@@ -800,90 +801,55 @@ function AppContent(props: AppProps) {
     ])
   })
 
-  // Input handler for keybindings
+  // Register shutdown handler for SIGINT/SIGTERM signals
   onMount(() => {
-    const inputHandler = (sequence: string): boolean => {
-      // Log key press (only if verbose mode is enabled)
-      if (props.verbose && isKeyboardInput(sequence)) {
-        log.debug("keybinding", "Key pressed", { 
-          key: sequence, 
-          hex: "0x" + sequence.charCodeAt(0).toString(16).toUpperCase(),
-          state: loop.state().type,
-          sessionId: sessionId(),
-          lastSessionId: lastSessionId()
-        })
+    shutdownManager.register(handleQuit)
+    // Initial plan parsing
+    refreshPlan()
+
+    onCleanup(() => {
+      shutdownManager.unregister()
+    })
+  })
+
+  // Input handler for keybindings
+  useKeyboard((key) => {
+    // Log key press (only if verbose mode is enabled)
+    if (props.verbose) {
+      log.debug("keybinding", "Key pressed", { 
+        key: key.name, 
+        sequence: key.sequence,
+        state: loop.state().type,
+        sessionId: sessionId(),
+        lastSessionId: lastSessionId()
+      })
+    }
+
+    // Ctrl+P - open command palette
+    if (key.ctrl && key.name === "p") {
+      command.show()
+      key.preventDefault()
+      return
+    }
+
+    // Debug mode handling
+    if (loop.isDebug()) {
+      // Detached in debug mode - handle our keybindings
+      if (key.name === "n") {
+        // N - create new session
+        createDebugSession()
+        key.preventDefault()
+        return
+      }
+      
+      if (key.name === "q") {
+        // Q - show quit confirmation
+        loop.showQuitConfirmation()
+        key.preventDefault()
+        return
       }
 
-      // Ctrl+P - open command palette (handle globally before state-specific handlers)
-      if (sequence === KEYS.CTRL_P) {
-        command.show()
-        return true
-      }
-
-      // If showing modals/dialogs, don't interfere unless it's global shortcuts that override them
-      // But typically we want the dialogs to handle their own input.
-
-      // Ctrl+\ (0x1c) - always handle - REMOVED, now handling T in specific states
-
-      // Debug mode handling
-      if (loop.isDebug()) {
-        // Detached in debug mode - handle our keybindings
-        if (sequence === KEYS.N_LOWER || sequence === KEYS.N_UPPER) {
-          // N - create new session
-          createDebugSession()
-          return true
-        }
-        
-        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-          // Q - show quit confirmation
-          loop.showQuitConfirmation()
-          return true
-        }
-
-        if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
-           const sid = sessionId() || lastSessionId()
-           if (sid) {
-              const config = ocloopConfig()
-              if (hasTerminalConfig(config)) {
-                 launchConfiguredTerminal(sid, config.terminal)
-              } else {
-                 command.trigger("terminal_config")
-              }
-           } else {
-              toast.show({ variant: "info", message: "No active session to attach to" })
-           }
-           return true
-        }
-        
-        // Consume other input in debug mode when detached
-        return true
-      }
-
-      // Ready state - handle S to start iterations
-      if (loop.canStart()) {
-        if (sequence === KEYS.S_LOWER || sequence === KEYS.S_UPPER) {
-          loop.dispatch({ type: "start" })
-          startIteration()
-          return true
-        }
-        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-          loop.showQuitConfirmation()
-          return true
-        }
-        // Consume other input in ready state
-        return true
-      }
-
-      // Complete state - Q to exit
-      if (loop.state().type === "complete") {
-        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-          handleQuit()
-        }
-        return true
-      }
-
-      // Detached - handle our keybindings
-      if (sequence === KEYS.T_LOWER || sequence === KEYS.T_UPPER) {
+      if (key.name === "t") {
          const sid = sessionId() || lastSessionId()
          if (sid) {
             const config = ocloopConfig()
@@ -895,55 +861,93 @@ function AppContent(props: AppProps) {
          } else {
             toast.show({ variant: "info", message: "No active session to attach to" })
          }
-         return true
+         key.preventDefault()
+         return
       }
-
-      if (sequence === KEYS.SPACE) {
-        if (loop.canPause()) {
-          loop.dispatch({ type: "toggle_pause" })
-        }
-        return true
-      }
-
-      if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-        if (loop.canQuit()) {
-          loop.showQuitConfirmation()
-        }
-        return true
-      }
-
-      // Error state - handle R for retry and Q for quit
-      if (loop.isError()) {
-        if (sequence === KEYS.R_LOWER || sequence === KEYS.R_UPPER) {
-          if (loop.canRetry()) {
-            loop.dispatch({ type: "retry" })
-          }
-          return true
-        }
-        if (sequence === KEYS.Q_LOWER || sequence === KEYS.Q_UPPER) {
-          handleQuit(1)
-        }
-        return true // consume other input in error state
-      }
-
-      // Let opentui handle other input (scrolling, etc.)
-      return false
+      
+      // Consume other input in debug mode when detached
+      key.preventDefault()
+      return
     }
 
-    // Prepend our input handler to process before opentui
-    renderer.prependInputHandler(inputHandler)
+    // Ready state - handle S to start iterations
+    if (loop.canStart()) {
+      if (key.name === "s") {
+        loop.dispatch({ type: "start" })
+        startIteration()
+        key.preventDefault()
+        return
+      }
+      if (key.name === "q") {
+        loop.showQuitConfirmation()
+        key.preventDefault()
+        return
+      }
+      // Consume other input in ready state
+      key.preventDefault()
+      return
+    }
 
-    // Register shutdown handler for SIGINT/SIGTERM signals
-    shutdownManager.register(handleQuit)
+    // Complete state - Q to exit
+    if (loop.state().type === "complete") {
+      if (key.name === "q") {
+        handleQuit()
+      }
+      key.preventDefault()
+      return
+    }
 
-    // Initial plan parsing
-    refreshPlan()
+    // Detached - handle our keybindings
+    if (key.name === "t") {
+       const sid = sessionId() || lastSessionId()
+       if (sid) {
+          const config = ocloopConfig()
+          if (hasTerminalConfig(config)) {
+             launchConfiguredTerminal(sid, config.terminal)
+          } else {
+             command.trigger("terminal_config")
+          }
+       } else {
+          toast.show({ variant: "info", message: "No active session to attach to" })
+       }
+       key.preventDefault()
+       return
+    }
 
-    // Cleanup on unmount
-    onCleanup(() => {
-      renderer.removeInputHandler(inputHandler)
-      shutdownManager.unregister()
-    })
+    if (key.name === "space") {
+      if (loop.canPause()) {
+        loop.dispatch({ type: "toggle_pause" })
+      }
+      key.preventDefault()
+      return
+    }
+
+    if (key.name === "q") {
+      if (loop.canQuit()) {
+        loop.showQuitConfirmation()
+      }
+      key.preventDefault()
+      return
+    }
+
+    // Error state - handle R for retry and Q for quit
+    if (loop.isError()) {
+      if (key.name === "r") {
+        if (loop.canRetry()) {
+          loop.dispatch({ type: "retry" })
+        }
+        key.preventDefault()
+        return
+      }
+      if (key.name === "q") {
+        handleQuit(1)
+      }
+      // consume other input in error state
+      key.preventDefault()
+      return
+    }
+
+    // Let opentui handle other input (scrolling, etc.)
   })
 
   return (

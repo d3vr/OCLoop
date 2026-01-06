@@ -14,7 +14,8 @@ Task selection (CRITICAL):
 - Work through phases IN ORDER - complete Phase N before starting Phase N+1
 - Pick the FIRST uncompleted task in the earliest incomplete phase
 - Skip [MANUAL] and [BLOCKED] items
-- You MAY batch directly related tasks ONLY if they are in the same phase, same file, AND logically coupled
+- NEVER batch tasks across different phases - each phase is a commit boundary
+- Within a SINGLE phase, you may batch tasks ONLY if they are in the same file AND logically coupled
 
 Execute:
 1. Make the code changes

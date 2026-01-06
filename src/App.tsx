@@ -635,7 +635,8 @@ function AppContent(props: AppProps) {
           iterations={state.iterations}
           totalTime={totalTime}
           summary={state.summary.summary}
-          onClose={() => handleQuit()}
+          onDismiss={() => dialog.clear()}
+          onQuit={() => handleQuit()}
         />
       ))
     }

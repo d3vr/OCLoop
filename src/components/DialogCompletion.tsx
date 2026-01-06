@@ -1,17 +1,20 @@
-import { Show } from "solid-js";
+import { Show, createSignal } from "solid-js";
+import { useKeyboard } from "@opentui/solid";
 import { Dialog } from "../ui/Dialog";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme, selectedForeground } from "../context/ThemeContext";
 import { formatDuration } from "../hooks/useLoopStats";
 
 export interface DialogCompletionProps {
   iterations: number;
   totalTime: number;
   summary: string;
-  onClose: () => void;
+  onDismiss: () => void;
+  onQuit: () => void;
 }
 
 export function DialogCompletion(props: DialogCompletionProps) {
   const { theme } = useTheme();
+  const [activeButton, setActiveButton] = createSignal<"dismiss" | "quit">("dismiss");
 
   // Calculate dialog height based on content
   const dialogHeight = () => {
@@ -24,8 +27,34 @@ export function DialogCompletion(props: DialogCompletionProps) {
     return Math.max(9, height);
   };
 
+  useKeyboard((key) => {
+    if (key.name === "escape") {
+      props.onDismiss();
+      return;
+    }
+
+    if (key.name === "q") {
+      props.onQuit();
+      return;
+    }
+
+    if (key.name === "return") {
+      if (activeButton() === "dismiss") {
+        props.onDismiss();
+      } else {
+        props.onQuit();
+      }
+      return;
+    }
+
+    if (key.name === "left" || key.name === "right") {
+      setActiveButton((prev) => (prev === "dismiss" ? "quit" : "dismiss"));
+      return;
+    }
+  });
+
   return (
-    <Dialog onClose={props.onClose} width={62} height={dialogHeight()}>
+    <Dialog onClose={props.onDismiss} width={62} height={dialogHeight()}>
       <box style={{ flexDirection: "column" }}>
         {/* Header */}
         <box
@@ -33,6 +62,7 @@ export function DialogCompletion(props: DialogCompletionProps) {
             width: "100%",
             justifyContent: "space-between",
             marginBottom: 1,
+            flexDirection: "row",
           }}
         >
           <text>
@@ -82,9 +112,53 @@ export function DialogCompletion(props: DialogCompletionProps) {
         </scrollbox>
 
         {/* Footer */}
-        <text style={{ marginTop: 1 }}>
-          <span style={{ bold: true }}>Quit</span> Q
-        </text>
+        <box
+          style={{
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            marginTop: 1,
+            gap: 1,
+          }}
+        >
+          <box
+            style={{
+              backgroundColor:
+                activeButton() === "dismiss" ? theme().primary : undefined,
+              paddingLeft: 1,
+              paddingRight: 1,
+            }}
+          >
+            <text
+              style={{
+                fg:
+                  activeButton() === "dismiss"
+                    ? selectedForeground(theme())
+                    : theme().text,
+              }}
+            >
+              Dismiss
+            </text>
+          </box>
+          <box
+            style={{
+              backgroundColor:
+                activeButton() === "quit" ? theme().primary : undefined,
+              paddingLeft: 1,
+              paddingRight: 1,
+            }}
+          >
+            <text
+              style={{
+                fg:
+                  activeButton() === "quit"
+                    ? selectedForeground(theme())
+                    : theme().text,
+              }}
+            >
+              Quit
+            </text>
+          </box>
+        </box>
       </box>
     </Dialog>
   );

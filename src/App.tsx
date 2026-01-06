@@ -425,6 +425,23 @@ function AppContent(props: AppProps) {
   }
 
   /**
+   * Helper to insert sample activity for UI testing
+   */
+  const insertSampleActivity = () => {
+    activityLog.addEvent("session_start", "Session started")
+    activityLog.addEvent("user_message", "User: Implement feature X")
+    activityLog.addEvent("assistant_message", "Assistant: I'll help with that")
+    activityLog.addEvent("reasoning", "Analyzing the codebase structure...", { dimmed: true })
+    activityLog.addEvent("tool_use", "bash", { detail: "ls -la src/" })
+    activityLog.addEvent("file_read", "Reading src/App.tsx")
+    activityLog.addEvent("tool_use", "edit", { detail: "src/components/Button.tsx" })
+    activityLog.addEvent("file_edit", "Modified src/components/Button.tsx (+15, -3)")
+    activityLog.addEvent("task", "Implementing dark mode toggle")
+    activityLog.addEvent("error", "Build failed: Type error in Button.tsx")
+    activityLog.addEvent("session_idle", "Session idle - waiting for input")
+  }
+
+  /**
    * Create a new session in debug mode (no prompt sent)
    * Just creates a session for manual interaction
    */
@@ -889,6 +906,14 @@ function AppContent(props: AppProps) {
       if (key.name === "q") {
         // Q - show quit confirmation
         showQuitConfirmation()
+        key.preventDefault()
+        return
+      }
+
+      if (key.name === "i") {
+        // I - insert sample activity for UI testing
+        insertSampleActivity()
+        toast.show({ variant: "info", message: "Sample activity inserted" })
         key.preventDefault()
         return
       }

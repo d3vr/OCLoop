@@ -1,7 +1,7 @@
 import { Dialog } from "../ui/Dialog"
 import { useTheme } from "../context/ThemeContext"
 import { getConfigPath } from "../lib/config"
-import { useInput } from "../hooks/useInput"
+import { useKeyboard } from "@opentui/solid"
 
 /**
  * Props for the DialogTerminalError component
@@ -28,14 +28,14 @@ export interface DialogTerminalErrorProps {
 export function DialogTerminalError(props: DialogTerminalErrorProps) {
   const { theme } = useTheme()
 
-  useInput((input, key) => {
+  useKeyboard((key) => {
     // C - copy
-    if (input === "c" || input === "C") {
+    if (key.name === "c" || key.sequence === "C") {
       props.onCopy()
       return
     }
     // Escape or Enter - close
-    if (key.name === "escape" || key.name === "return" || key.name === "enter") {
+    if (key.name === "escape" || key.name === "return") {
       props.onClose()
       return
     }

@@ -1,6 +1,6 @@
 
 import { describe, expect, test } from "bun:test";
-import { formatTokenCount, truncateText, formatDiffSummary, getToolPreview } from "./format";
+import { formatTokenCount, truncateText, formatDiffSummary, getToolPreview, stripMarkdown } from "./format";
 
 describe("format utilities", () => {
   test("formatTokenCount formats numbers with separators", () => {
@@ -35,5 +35,17 @@ describe("format utilities", () => {
     expect(getToolPreview("write", { filePath: "C:\\Windows\\System32\\config.sys" })).toBe("config.sys");
     expect(getToolPreview("glob", { pattern: "*.ts" })).toBe("*.ts");
     expect(getToolPreview("unknown", {})).toBe("unknown");
+  });
+
+  test("stripMarkdown removes markdown formatting", () => {
+    expect(stripMarkdown("**Bold** text")).toBe("Bold text");
+    expect(stripMarkdown("*Italic* text")).toBe("Italic text");
+    expect(stripMarkdown("_Italic_ text")).toBe("Italic text");
+    expect(stripMarkdown("`Code` inline")).toBe("Code inline");
+    expect(stripMarkdown("[Link](http://example.com)")).toBe("Link");
+    expect(stripMarkdown("# Header")).toBe("Header");
+    expect(stripMarkdown("- List item")).toBe("List item");
+    expect(stripMarkdown("1. Numbered item")).toBe("Numbered item");
+    expect(stripMarkdown("Mixed **bold** and `code`")).toBe("Mixed bold and code");
   });
 });

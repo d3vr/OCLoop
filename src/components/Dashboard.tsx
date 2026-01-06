@@ -2,6 +2,7 @@ import { createMemo, Show } from "solid-js"
 import type { LoopState, PlanProgress } from "../types"
 import type { UseLoopStatsReturn } from "../hooks/useLoopStats"
 import { formatDuration } from "../hooks/useLoopStats"
+import { stripMarkdown } from "../lib/format"
 import { useTheme } from "../context/ThemeContext"
 import { ProgressIndicator } from "./ProgressIndicator"
 
@@ -190,9 +191,10 @@ export function Dashboard(props: DashboardProps) {
     
     const task = props.currentTask
     if (!task) return null
+    const cleanedTask = stripMarkdown(task)
     const maxLen = 60 // Reasonable default, could be dynamic
-    if (task.length <= maxLen) return task
-    return task.substring(0, maxLen - 3) + "..."
+    if (cleanedTask.length <= maxLen) return cleanedTask
+    return cleanedTask.substring(0, maxLen - 3) + "..."
   })
 
   // Border color based on active state

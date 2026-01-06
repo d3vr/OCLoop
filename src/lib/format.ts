@@ -42,3 +42,25 @@ export function getToolPreview(toolName: string, input: Record<string, unknown>)
     return toolName;
   }
 }
+
+export function stripMarkdown(text: string): string {
+  if (!text) return "";
+
+  return text
+    // Headers
+    .replace(/^#{1,6}\s+/gm, "")
+    // Bold
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    // Italic (asterisk)
+    .replace(/\*([^*]+)\*/g, "$1")
+    // Italic (underscore)
+    .replace(/_([^_]+)_/g, "$1")
+    // Inline code
+    .replace(/`([^`]+)`/g, "$1")
+    // Links
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // List markers
+    .replace(/^[\s]*[-*+]\s+/gm, "")
+    // Numbered lists
+    .replace(/^[\s]*\d+\.\s+/gm, "");
+}

@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js"
-import { useInput } from "../hooks/useInput"
+import { useKeyboard } from "@opentui/solid"
 import { Dialog } from "./Dialog"
 import { useTheme, selectedForeground } from "../context/ThemeContext"
 import { DialogContextValue } from "../context/DialogContext"
@@ -18,14 +18,14 @@ export function DialogConfirm(props: DialogConfirmProps) {
   const [activeButton, setActiveButton] = createSignal<"cancel" | "confirm">("confirm")
 
   // Handle keyboard input
-  useInput((input, key) => {
+  useKeyboard((key) => {
     // Escape handled by Dialog backdrop/onClose
     if (key.name === "escape") {
       if (props.onCancel) props.onCancel()
       return
     }
 
-    if (key.name === "return" || key.name === "enter") {
+    if (key.name === "return") {
       if (activeButton() === "confirm") {
         if (props.onConfirm) props.onConfirm()
       } else {

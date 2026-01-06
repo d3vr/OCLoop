@@ -18,5 +18,6 @@ Check these before web searching (load with Read tool as needed):
 - Tests: `bun test` from repo root
 - No lint script configured in package.json
 - When committing, never do `git add .`, always list unstaged changes so you get a chance to think about them in case you need to add anything into .gitignore first (e.g: node_modules/)
+- NEVER try to commit gitignored files (like `.ai/` directory, `.loop*` files, or `dist/`). Respect `.gitignore`.
 - When searching for the next task to execute, only look in `PLAN.md`. Do not search the entire codebase for `[ ]` as it may yield false positives from tests, examples, or documentation.
 - Use `src/hooks/useInput` for keyboard handling in components (wraps `@opentui/solid`'s `useRenderer`).

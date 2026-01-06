@@ -26,25 +26,25 @@ function getEventLabel(type: ActivityEventType): string {
     case "session_start":
       return "[start]";
     case "session_idle":
-      return "[idle]";
+      return "[idle] ";
     case "task":
-      return "[task]";
+      return "[task] ";
     case "file_edit":
-      return "[edit]";
+      return "[edit] ";
     case "error":
       return "[error]";
     case "user_message":
-      return "[user]";
+      return "[user] ";
     case "assistant_message":
-      return "[ai]";
+      return "[ai]   ";
     case "reasoning":
       return "[think]";
     case "tool_use":
-      return "[tool]";
+      return "[tool] ";
     case "file_read":
-      return "[read]";
+      return "[read] ";
     default:
-      return "[???]";
+      return "[???]  ";
   }
 }
 

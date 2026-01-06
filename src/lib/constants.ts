@@ -49,7 +49,6 @@ export function isKeyboardInput(sequence: string): boolean {
 export const DEFAULTS = {
   PROMPT_FILE: ".loop-prompt.md",
   PLAN_FILE: "PLAN.md",
-  COMPLETE_FILE: ".loop-complete",
 } as const
 
 /**

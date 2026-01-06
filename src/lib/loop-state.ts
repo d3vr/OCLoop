@@ -1,119 +1,24 @@
-import { readFile, writeFile, unlink, access } from "node:fs/promises";
+import { readFile, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 import { log } from "./debug-logger";
 
-const LOOP_STATE_FILE = ".loop-state.json";
 const GITIGNORE_FILE = ".gitignore";
 
-export interface LoopStateFile {
-  version: 1;
-  iteration: number;
-  iterationHistory: number[]; // Active times in ms
-  createdAt: number;
-  updatedAt: number;
-}
-
 /**
- * Load loop state from .loop-state.json in current working directory
- * Returns null if file doesn't exist or is invalid
- */
-export async function loadLoopState(): Promise<LoopStateFile | null> {
-  const filePath = join(process.cwd(), LOOP_STATE_FILE);
-  try {
-    const content = await readFile(filePath, "utf-8");
-    const data = JSON.parse(content) as unknown;
-
-    // Basic validation
-    if (
-      typeof data === "object" &&
-      data !== null &&
-      "version" in data &&
-      data.version === 1 &&
-      "iteration" in data &&
-      typeof data.iteration === "number" &&
-      "iterationHistory" in data &&
-      Array.isArray(data.iterationHistory) &&
-      "createdAt" in data &&
-      typeof data.createdAt === "number" &&
-      "updatedAt" in data &&
-      typeof data.updatedAt === "number"
-    ) {
-      log.info("state", "Loaded loop state", data);
-      return data as LoopStateFile;
-    }
-    log.debug("state", "Invalid loop state file");
-    return null;
-  } catch {
-    // File not found or parse error
-    log.debug("state", "No loop state found");
-    return null;
-  }
-}
-
-/**
- * Save loop state to .loop-state.json in current working directory
- */
-export async function saveLoopState(state: LoopStateFile): Promise<void> {
-  const filePath = join(process.cwd(), LOOP_STATE_FILE);
-  const content = JSON.stringify(
-    {
-      ...state,
-      updatedAt: Date.now(),
-    },
-    null,
-    2
-  );
-  await writeFile(filePath, content, "utf-8");
-  log.info("state", "Saved loop state", state);
-}
-
-/**
- * Create a new loop state file
- */
-export function createLoopState(): LoopStateFile {
-  const now = Date.now();
-  return {
-    version: 1,
-    iteration: 1,
-    iterationHistory: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-/**
- * Delete .loop-state.json on completion
- */
-export async function deleteLoopState(): Promise<void> {
-  const filePath = join(process.cwd(), LOOP_STATE_FILE);
-  try {
-    await unlink(filePath);
-  } catch {
-    // File might not exist, ignore error
-  }
-}
-
-/**
- * Check if a file exists
- */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Ensure .loop-state.json is in .gitignore
+ * Ensure .loop* files are in .gitignore
  * Creates .gitignore if it doesn't exist
  */
 export async function ensureGitignore(): Promise<void> {
   const gitignorePath = join(process.cwd(), GITIGNORE_FILE);
   const entry = ".loop*";
 
-  const exists = await fileExists(gitignorePath);
+  let exists = false;
+  try {
+    await access(gitignorePath);
+    exists = true;
+  } catch {
+    exists = false;
+  }
 
   if (!exists) {
     // Create .gitignore with our entry
